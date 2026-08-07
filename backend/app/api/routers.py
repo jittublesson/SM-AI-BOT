@@ -703,11 +703,30 @@ def remove_fund_watchlist(id: int, db: Session = Depends(get_db)):
 # --- 19. User Asset Portfolio Holdings Routers ---
 @router.get("/portfolio/holdings", response_model=List[schemas.HoldingResponse])
 def get_portfolio_holdings(db: Session = Depends(get_db)):
-    return db.query(models.UserHolding).all()
+    holdings = db.query(models.UserHolding).all()
+    for h in holdings:
+        try:
+            if h.symbol:
+                data = YFinanceService.get_stock_data(h.symbol)
+                live_price = data.get("info", {}).get("price")
+                if live_price and live_price > 0:
+                    h.current_value = live_price
+        except Exception as e:
+            print(f"Error fetching live price for {h.symbol}: {e}")
+    return holdings
 
 @router.get("/portfolio/analytics")
 def get_portfolio_analytics(db: Session = Depends(get_db)):
     holdings = db.query(models.UserHolding).all()
+    for h in holdings:
+        try:
+            if h.symbol:
+                data = YFinanceService.get_stock_data(h.symbol)
+                live_price = data.get("info", {}).get("price")
+                if live_price and live_price > 0:
+                    h.current_value = live_price
+        except Exception as e:
+            print(f"Error fetching live price for {h.symbol}: {e}")
     return PortfolioService.calculate_portfolio_analytics(holdings)
 
 @router.post("/portfolio/holdings", response_model=schemas.HoldingResponse)

@@ -506,30 +506,82 @@ MOCK_FUNDS: Dict[str, Dict[str, Any]] = {
 
 class MutualFundService:
     @staticmethod
+    def _inject_live_navs(funds_list: List[Dict[str, Any]]):
+        ticker_map = {
+            "sbi-bluechip": "0P0000XWUI.NS",
+            "parag-parikh-flexicap": "0P00012A30.NS",
+            "nippon-smallcap": "0P0000YVBC.NS",
+            "hdfc-midcap": "0P0000XVZ1.NS",
+            "axis-bluechip": "0P0000XVUR.NS",
+            "icici-nasdaq": "0P0001MTJD.NS"
+        }
+        for fund in funds_list:
+            if not fund:
+                continue
+            ticker = ticker_map.get(fund["id"])
+            if ticker:
+                try:
+                    from app.services.yfinance_service import get_cached, set_cached
+                    cache_key = f"mf_nav_{ticker}"
+                    cached_nav = get_cached(cache_key, 300) # cache for 5 minutes
+                    if cached_nav:
+                        fund["nav"] = cached_nav
+                    else:
+                        import yfinance as yf
+                        yt = yf.Ticker(ticker)
+                        fast = yt.fast_info
+                        if fast and hasattr(fast, 'last_price') and fast.last_price is not None:
+                            nav = round(float(fast.last_price), 2)
+                            fund["nav"] = nav
+                            set_cached(cache_key, nav)
+                        else:
+                            hist = yt.history(period="1d")
+                            if not hist.empty:
+                                nav = round(float(hist["Close"].iloc[-1]), 2)
+                                fund["nav"] = nav
+                                set_cached(cache_key, nav)
+                except Exception as e:
+                    print(f"Error fetching live NAV for {ticker}: {e}")
+
+    @staticmethod
     def get_all_funds() -> List[Dict[str, Any]]:
-        return list(MOCK_FUNDS.values())
+        import copy
+        all_funds = [copy.deepcopy(f) for f in MOCK_FUNDS.values()]
+        MutualFundService._inject_live_navs(all_funds)
+        return all_funds
 
     @staticmethod
     def get_fund_by_id(fund_id: str) -> Dict[str, Any]:
-        return MOCK_FUNDS.get(fund_id.lower().strip())
+        import copy
+        fund = MOCK_FUNDS.get(fund_id.lower().strip())
+        if fund:
+            fund_copy = copy.deepcopy(fund)
+            MutualFundService._inject_live_navs([fund_copy])
+            return fund_copy
+        return None
 
     @staticmethod
     def search_funds(query: str) -> List[Dict[str, Any]]:
+        import copy
         q = query.lower().strip()
         if not q:
             return []
-        return [
-            f for f in MOCK_FUNDS.values()
+        matched = [
+            copy.deepcopy(f) for f in MOCK_FUNDS.values()
             if q in f["name"].lower() or q in f["amc"].lower() or q in f["category"].lower()
         ]
+        MutualFundService._inject_live_navs(matched)
+        return matched
 
     @staticmethod
     def compare_funds(fund_ids: List[str]) -> List[Dict[str, Any]]:
+        import copy
         results = []
         for fid in fund_ids:
             fund = MOCK_FUNDS.get(fid.lower().strip())
             if fund:
-                results.append(fund)
+                results.append(copy.deepcopy(fund))
+        MutualFundService._inject_live_navs(results)
         return results
 
     @staticmethod
