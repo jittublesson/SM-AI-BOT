@@ -27,6 +27,19 @@ export const PortfolioManagerView: React.FC<PortfolioManagerViewProps> = ({ targ
   const [holdings, setHoldings] = useState<Holding[]>([]);
   const [loading, setLoading] = useState(true);
   const [analytics, setAnalytics] = useState<any>(null);
+  
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+  const [expandedHoldingId, setExpandedHoldingId] = useState<number | null>(null);
+
+  useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth < 768);
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
+
+  const toggleExpandHolding = (id: number) => {
+    setExpandedHoldingId(prev => prev === id ? null : id);
+  };
   const [showAddModal, setShowAddModal] = useState(false);
   const [addingHolding, setAddingHolding] = useState(false);
 
@@ -286,19 +299,93 @@ export const PortfolioManagerView: React.FC<PortfolioManagerViewProps> = ({ targ
               <div className="h-full flex flex-col items-center justify-center text-brand-muted text-xs p-8">
                 <span>Holdings ledger is empty. Click 'Add Transaction' to start tracking.</span>
               </div>
+            ) : isMobile ? (
+              /* Mobile Expandable Cards view */
+              <div className="space-y-3 p-3 select-none">
+                {holdings.map((h) => {
+                  const totalVal = h.quantity * h.current_value;
+                  const costVal = h.quantity * h.buy_price;
+                  const gainVal = totalVal - costVal;
+                  const gainPct = costVal > 0 ? (gainVal / costVal) * 100 : 0;
+                  const isExpanded = expandedHoldingId === h.id;
+                  
+                  return (
+                    <div 
+                      key={h.id} 
+                      onClick={() => toggleExpandHolding(h.id)}
+                      className="glass-card p-4 rounded-xl border border-light-border dark:border-dark-border bg-black/5 dark:bg-white/5 flex flex-col gap-2 transition-all cursor-pointer"
+                    >
+                      <div className="flex justify-between items-center">
+                        <div>
+                          <span className="font-bold font-mono text-slate-800 dark:text-slate-200 block text-xs">{h.symbol}</span>
+                          <span className="text-[9px] uppercase tracking-wider bg-brand-primary/10 text-brand-primary font-bold px-1.5 py-0.5 rounded font-mono mt-1 inline-block">{h.asset_class}</span>
+                        </div>
+                        <div className="text-right font-mono">
+                          <span className="font-bold text-slate-800 dark:text-slate-100 block text-xs">{formatPrice(totalVal, "INR", targetCurrency)}</span>
+                          <span className={`text-[10px] font-bold ${gainVal >= 0 ? "text-brand-success" : "text-brand-danger"}`}>
+                            {gainVal >= 0 ? "+" : ""}{gainPct.toFixed(1)}%
+                          </span>
+                        </div>
+                      </div>
+                      
+                      {isExpanded && (
+                        <div className="border-t border-light-border dark:border-dark-border pt-3 mt-1 space-y-2 text-[10px] text-slate-600 dark:text-slate-400 font-sans animate-fade-in">
+                          <div className="flex justify-between">
+                            <span>Description:</span>
+                            <span className="font-bold text-slate-800 dark:text-slate-200">{h.name}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span>Units Held:</span>
+                            <span className="font-mono text-slate-800 dark:text-slate-200">{h.quantity.toLocaleString()}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span>Avg Cost Price:</span>
+                            <span className="font-mono text-slate-800 dark:text-slate-200">{formatPrice(h.buy_price, "INR", targetCurrency)}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span>Market Price:</span>
+                            <span className="font-mono text-slate-800 dark:text-slate-200">{formatPrice(h.current_value, "INR", targetCurrency)}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span>Geographic Exposure:</span>
+                            <span className="font-mono text-slate-800 dark:text-slate-200">{h.sector} ({h.country})</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span>CAGR & Volatility:</span>
+                            <span className="font-mono text-slate-800 dark:text-slate-200">+{h.cagr}% / {h.volatility}% Std</span>
+                          </div>
+                          <div className="flex justify-end pt-2">
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleRemoveHolding(h.id);
+                              }}
+                              className="px-3 py-2 bg-brand-danger/10 hover:bg-brand-danger/20 text-brand-danger rounded text-[10px] font-bold uppercase transition-colors"
+                              style={{ minHeight: "44px", minWidth: "120px" }}
+                            >
+                              Delete Record
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
             ) : (
-              <div className="overflow-x-auto w-full">
+              /* Desktop Sticky Header Table view */
+              <div className="overflow-x-auto w-full relative">
                 <table className="w-full text-xs text-left">
-                  <thead>
+                  <thead className="sticky top-0 bg-white dark:bg-[#101217] z-10">
                     <tr className="border-b border-light-border dark:border-dark-border text-brand-muted bg-black/2 dark:bg-white/2">
-                      <th className="px-4 py-2 font-bold font-sans uppercase">Asset</th>
-                      <th className="px-4 py-2 font-bold font-sans uppercase">Class</th>
-                      <th className="px-4 py-2 font-bold font-sans uppercase text-right">Units</th>
-                      <th className="px-4 py-2 font-bold font-sans uppercase text-right">Buy Price</th>
-                      <th className="px-4 py-2 font-bold font-sans uppercase text-right">Market Price</th>
-                      <th className="px-4 py-2 font-bold font-sans uppercase text-right">Valuation</th>
-                      <th className="px-4 py-2 font-bold font-sans uppercase text-center">Gain</th>
-                      <th className="px-4 py-2 font-bold font-sans uppercase text-center">Actions</th>
+                      <th className="px-4 py-3 font-bold font-sans uppercase">Asset</th>
+                      <th className="px-4 py-3 font-bold font-sans uppercase">Class</th>
+                      <th className="px-4 py-3 font-bold font-sans uppercase text-right">Units</th>
+                      <th className="px-4 py-3 font-bold font-sans uppercase text-right">Buy Price</th>
+                      <th className="px-4 py-3 font-bold font-sans uppercase text-right">Market Price</th>
+                      <th className="px-4 py-3 font-bold font-sans uppercase text-right">Valuation</th>
+                      <th className="px-4 py-3 font-bold font-sans uppercase text-center">Gain</th>
+                      <th className="px-4 py-3 font-bold font-sans uppercase text-center">Actions</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-light-border dark:divide-dark-border font-mono">

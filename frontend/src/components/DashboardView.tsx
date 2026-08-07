@@ -9,6 +9,15 @@ interface DashboardViewProps {
 
 export const DashboardView: React.FC<DashboardViewProps> = ({ onSelectTicker, targetCurrency = "INR" }) => {
   const [loading, setLoading] = useState(true);
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+  const [showAdvancedWidgets, setShowAdvancedWidgets] = useState(false);
+
+  useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth < 768);
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
+
   const [fgData, setFgData] = useState<any>(null);
   const [macroData, setMacroData] = useState<any>(null);
   const [bookmarks, setBookmarks] = useState<any[]>([]);
@@ -193,6 +202,249 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onSelectTicker, ta
 
   const marketStatus = isMarketOpen();
 
+  if (isMobile) {
+    return (
+      <div className="flex flex-col space-y-5 h-full overflow-y-auto pb-8 px-1 select-none">
+        {/* 1. Portfolio Net Worth & Daily Gains Card */}
+        <div className="glass-card p-5 rounded-2xl bg-gradient-to-br from-brand-primary/5 via-transparent to-transparent border border-light-border dark:border-dark-border">
+          <span className="text-[9px] uppercase font-bold tracking-widest text-brand-muted block">Portfolio Net Worth</span>
+          <div className="flex items-baseline justify-between mt-2.5">
+            <h1 className="text-2xl font-black font-mono tracking-tight text-slate-800 dark:text-white">
+              {formatPrice(portfolioSummary.totalValue, "INR", targetCurrency, true)}
+            </h1>
+            <span className={`flex items-center text-[11px] font-bold font-mono px-2 py-0.5 rounded ${
+              portfolioSummary.dailyChange >= 0 ? "bg-brand-secondary/10 text-brand-secondary" : "bg-brand-danger/10 text-brand-danger"
+            }`}>
+              {portfolioSummary.dailyChange >= 0 ? "+" : ""}{portfolioSummary.dailyChangePct}%
+            </span>
+          </div>
+          <div className="flex justify-between items-center border-t border-light-border dark:border-dark-border pt-3 mt-4 text-[10px] text-brand-muted">
+            <span className="font-semibold">Today: {formatPrice(portfolioSummary.dailyChange, "INR", targetCurrency, true)}</span>
+            <div className="flex items-center gap-1">
+              <span className={`w-2 h-2 rounded-full ${marketStatus ? "bg-green-500 animate-pulse" : "bg-gray-400"}`}></span>
+              <span>{marketStatus ? "NSE/BSE Open" : "Market Closed"}</span>
+            </div>
+          </div>
+        </div>
+
+        {/* 2. AI Insights Card */}
+        <div className="glass-card p-5 rounded-2xl border border-light-border dark:border-dark-border space-y-2">
+          <div className="flex items-center gap-1.5 text-brand-primary">
+            <Cpu className="w-4 h-4" />
+            <span className="text-[10px] font-black uppercase tracking-wider">AI Insights & Consensus</span>
+          </div>
+          <p className="text-[11px] leading-relaxed text-slate-700 dark:text-slate-300">
+            India Nifty is showing strong technical support at 24,150. AI signals suggest gradual accumulation in Large Cap IT and Energy sectors while retaining defensive cash hedges.
+          </p>
+        </div>
+
+        {/* 3. Market Overview (Indian Indices) */}
+        <div className="space-y-2">
+          <span className="text-[8px] font-black uppercase text-brand-muted tracking-widest block">Indian Market Indices</span>
+          <div className="grid grid-cols-2 gap-3">
+            {macroData?.indian_indices?.map((index: any, idx: number) => {
+              const isUp = index.change.startsWith("+");
+              return (
+                <div key={idx} className="glass-card p-3 rounded-xl flex flex-col justify-between border border-light-border dark:border-dark-border bg-black/5 dark:bg-white/5">
+                  <span className="text-[9px] text-brand-muted uppercase font-bold tracking-wider block">{index.name}</span>
+                  <div className="flex justify-between items-baseline mt-1.5">
+                    <span className="text-xs font-mono font-bold text-slate-800 dark:text-white">{index.price}</span>
+                    <span className={`text-[8.5px] font-mono font-bold ${isUp ? "text-brand-secondary" : "text-brand-danger"}`}>{index.change}</span>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* 4. Fear & Greed Score */}
+        <div className="glass-card p-5 rounded-2xl border border-light-border dark:border-dark-border flex justify-between items-center">
+          <div>
+            <span className="text-[9px] uppercase font-bold tracking-widest text-brand-muted block">Fear & Greed Sentiment</span>
+            <span className="text-xl font-black font-mono text-brand-warning mt-1 block">
+              {fgData?.fear_greed_score ? fgData.fear_greed_score * 10 : 50}/100 - {fgData?.fear_greed_label || "Neutral"}
+            </span>
+          </div>
+          <Flame className="w-8 h-8 text-brand-warning shrink-0" />
+        </div>
+
+        {/* 5. Watchlist Highlights */}
+        <div className="glass-card p-5 rounded-2xl border border-light-border dark:border-dark-border space-y-3">
+          <div className="flex items-center gap-1.5 border-b border-light-border dark:border-dark-border pb-2.5">
+            <Landmark className="w-4 h-4 text-brand-warning" />
+            <h3 className="text-[10px] font-black uppercase text-brand-primary tracking-wider">Bookmarked Tickers</h3>
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            {bookmarks.length > 0 ? (
+              bookmarks.slice(0, 4).map((b) => (
+                <div
+                  key={b.id}
+                  onClick={() => onSelectTicker(b.ticker)}
+                  className="p-2 rounded-lg border border-light-border dark:border-dark-border bg-black/5 dark:bg-white/5 flex flex-col cursor-pointer transition-colors text-[10px] font-mono"
+                >
+                  <span className="font-bold text-brand-primary">{b.ticker}</span>
+                  <span className="text-[8px] text-brand-muted font-sans truncate">{b.title}</span>
+                </div>
+              ))
+            ) : (
+              <div className="col-span-2 text-[10px] text-brand-muted text-center py-4 border border-dashed border-light-border dark:border-dark-border rounded-xl">
+                No bookmarked items.
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* 6. Top Daily Performers (Movers) */}
+        <div className="glass-card p-5 rounded-2xl border border-light-border dark:border-dark-border space-y-3">
+          <div className="flex items-center gap-1.5 border-b border-light-border dark:border-dark-border pb-2">
+            <TrendingUp className="w-4 h-4 text-brand-secondary" />
+            <h3 className="text-[10px] font-black uppercase text-brand-primary tracking-wider">Top Daily Performers</h3>
+          </div>
+          <div className="grid grid-cols-2 gap-3 text-[10px] font-mono">
+            <div>
+              <span className="text-[9px] font-extrabold uppercase tracking-widest text-brand-secondary block mb-1">Gainers</span>
+              <div className="space-y-1.5">
+                {topGainers.slice(0, 3).map((g, idx) => (
+                  <div key={idx} onClick={() => onSelectTicker(g.ticker)} className="p-1.5 rounded bg-brand-secondary/5 border border-brand-secondary/10 flex justify-between cursor-pointer">
+                    <span className="font-bold">{g.ticker}</span>
+                    <span className="text-brand-secondary">{g.change}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div>
+              <span className="text-[9px] font-extrabold uppercase tracking-widest text-brand-danger block mb-1">Losers</span>
+              <div className="space-y-1.5">
+                {topLosers.slice(0, 3).map((l, idx) => (
+                  <div key={idx} onClick={() => onSelectTicker(l.ticker)} className="p-1.5 rounded bg-brand-danger/5 border border-brand-danger/10 flex justify-between cursor-pointer">
+                    <span className="font-bold">{l.ticker}</span>
+                    <span className="text-brand-danger">{l.change}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* 7. Market Intelligence News */}
+        <div className="glass-card p-5 rounded-2xl border border-light-border dark:border-dark-border space-y-3">
+          <div className="flex items-center gap-2 border-b border-light-border dark:border-dark-border pb-2.5">
+            <Newspaper className="w-4 h-4 text-brand-primary" />
+            <h3 className="text-[10px] font-black uppercase text-brand-primary tracking-wider">Market Intelligence News</h3>
+          </div>
+          <div className="space-y-3">
+            {newsItems.slice(0, 3).map((news, idx) => (
+              <div key={idx} className="space-y-1 text-xs">
+                <div className="flex justify-between items-center text-[8.5px] font-mono text-brand-muted">
+                  <span>{news.source}</span>
+                  <span>{news.time}</span>
+                </div>
+                <h4 className="font-bold text-slate-800 dark:text-slate-200 leading-snug">{news.title}</h4>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* 8. Corporate Events Calendar */}
+        <div className="glass-card p-5 rounded-2xl border border-light-border dark:border-dark-border space-y-3">
+          <div className="flex items-center gap-2 border-b border-light-border dark:border-dark-border pb-2.5">
+            <Calendar className="w-4 h-4 text-brand-primary" />
+            <h3 className="text-[10px] font-black uppercase text-brand-primary tracking-wider">Corporate & Economic Events</h3>
+          </div>
+          <div className="space-y-2 font-mono text-[10px]">
+            {calendarEvents[activeCalendarTab]?.slice(0, 3).map((ev: any, idx: number) => (
+              <div key={idx} className="flex justify-between items-center p-2 rounded bg-black/5 dark:bg-white/5 border border-light-border/40 dark:border-dark-border/40">
+                <span className="font-sans font-semibold text-slate-800 dark:text-slate-200">{ev.company || ev.event || ev.name}</span>
+                <span className="text-brand-muted">{ev.date}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Expandable Advanced Widgets Button */}
+        <button
+          onClick={() => setShowAdvancedWidgets(!showAdvancedWidgets)}
+          className="w-full py-3 bg-black/5 dark:bg-white/5 border border-light-border dark:border-dark-border rounded-xl text-xs font-bold text-brand-primary uppercase tracking-widest hover:bg-black/10 dark:hover:bg-white/10 transition-all mt-2"
+          style={{ minHeight: "48px" }}
+        >
+          {showAdvancedWidgets ? "Hide Advanced Tools & Indicators" : "Show Advanced Tools & Indicators"}
+        </button>
+
+        {showAdvancedWidgets && (
+          <div className="space-y-5 pt-2">
+            {/* Global Indices */}
+            <div className="space-y-2">
+              <span className="text-[8px] font-black uppercase text-brand-muted tracking-widest block">Global Index Snapshot</span>
+              <div className="grid grid-cols-2 gap-3">
+                {macroData?.global_markets?.map((index: any, idx: number) => (
+                  <div key={idx} className="glass-card p-2.5 rounded-xl flex flex-col justify-between border border-light-border dark:border-dark-border bg-black/5 dark:bg-white/5 text-[10px]">
+                    <span className="text-brand-muted truncate block">{index.name}</span>
+                    <div className="flex justify-between items-baseline mt-1 font-mono">
+                      <span className="font-bold text-slate-800 dark:text-slate-100">{index.price}</span>
+                      <span className={index.change.startsWith("+") ? "text-brand-secondary" : "text-brand-danger"}>{index.change}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Rotations and FII flows */}
+            <div className="space-y-4">
+              <div className="glass-card p-4 rounded-xl border border-light-border dark:border-dark-border space-y-3">
+                <span className="text-[9px] font-black uppercase tracking-wider text-brand-primary">FII / DII flows</span>
+                <div className="flex justify-between items-center text-[10px] font-mono">
+                  <span>FII Net Flow:</span>
+                  <span className="font-bold">{macroData?.fii_dii_flows?.fii_net_today_cr || "+0 Cr"}</span>
+                </div>
+                <div className="flex justify-between items-center text-[10px] font-mono">
+                  <span>DII Net Flow:</span>
+                  <span className="font-bold text-brand-secondary">{macroData?.fii_dii_flows?.dii_net_today_cr || "+0 Cr"}</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Custom Alert Builder */}
+            <div className="glass-card p-4 rounded-xl border border-light-border dark:border-dark-border space-y-2.5">
+              <span className="text-[9px] font-black uppercase tracking-wider text-brand-primary">Setup Custom Alert Trigger</span>
+              <form onSubmit={handleCreateAlert} className="space-y-2">
+                <div className="flex gap-1.5">
+                  <input 
+                    type="text" 
+                    value={alertTicker}
+                    onChange={(e) => setAlertTicker(e.target.value)}
+                    placeholder="Ticker"
+                    className="w-1/2 p-2 text-xs rounded border border-light-border dark:border-dark-border bg-black/5 dark:bg-white/5 text-slate-800 dark:text-white focus:outline-none"
+                    style={{ minHeight: "40px" }}
+                  />
+                  <select 
+                    value={alertType}
+                    onChange={(e) => setAlertType(e.target.value)}
+                    className="w-1/2 p-2 text-xs rounded border border-light-border dark:border-dark-border bg-black/5 dark:bg-white/5 text-slate-800 dark:text-white focus:outline-none"
+                    style={{ minHeight: "40px" }}
+                  >
+                    <option value="Price">Price</option>
+                    <option value="Volume">Volume</option>
+                  </select>
+                </div>
+                <div className="flex gap-1.5 items-center">
+                  <input 
+                    type="number" 
+                    value={alertValue}
+                    onChange={(e) => setAlertValue(Number(e.target.value))}
+                    placeholder="Val"
+                    className="w-2/3 p-2 text-xs rounded border border-light-border dark:border-dark-border bg-black/5 dark:bg-white/5 text-slate-800 dark:text-white focus:outline-none"
+                    style={{ minHeight: "40px" }}
+                  />
+                  <button type="submit" className="w-1/3 bg-brand-primary text-white text-xs py-2 rounded font-bold" style={{ minHeight: "40px" }}>Set Alert</button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  }
+
   return (
     <div className="flex flex-col space-y-6 h-full overflow-y-auto pr-2 pb-6">
       
@@ -325,10 +577,10 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onSelectTicker, ta
       </div>
 
       {/* PRIMARY COLUMNS: Main Area & Sidebar */}
-      <div className="grid grid-cols-1 xl:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
 
         {/* LEFT & CENTER 3 COLS: Live Tables & Heatmaps */}
-        <div className="xl:col-span-3 space-y-6">
+        <div className="md:col-span-1 lg:col-span-2 xl:col-span-3 space-y-6">
           
           {/* Active Stock Intelligence Blocks */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -438,7 +690,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onSelectTicker, ta
                 <Percent className="w-4 h-4 text-brand-primary" />
                 <h3 className="text-xs font-black uppercase text-brand-primary tracking-wider">Sector Rotation Performance</h3>
               </div>
-              <div className="grid grid-cols-3 gap-3">
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                 {sectorHeatmap.map((s, idx) => {
                   const isUp = s.change.startsWith("+");
                   return (

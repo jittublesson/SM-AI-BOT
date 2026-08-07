@@ -3,7 +3,7 @@ import {
   Cpu, LayoutDashboard, GraduationCap, BarChart3, FileText, Briefcase, 
   Activity, Code, LineChart, Landmark, Share2, Sun, Moon, Search, 
   MessageSquare, Bookmark, X, Terminal, Eye, BookOpen, Globe, HelpCircle, Coins,
-  ChevronLeft, ChevronRight, Star, TrendingUp
+  ChevronLeft, ChevronRight, Star, TrendingUp, Menu, Mic
 } from "lucide-react";
 
 // Views imports
@@ -64,6 +64,27 @@ export default function App() {
   const [bookmarked, setBookmarked] = useState(false);
   const [bookmarksList, setBookmarksList] = useState<any[]>([]);
   const [showHelp, setShowHelp] = useState(false);
+
+  // Screen size and hamburger states
+  const [screenWidth, setScreenWidth] = useState(window.innerWidth);
+  const [hamburgerOpen, setHamburgerOpen] = useState(false);
+
+  useEffect(() => {
+    const handleResize = () => setScreenWidth(window.innerWidth);
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
+
+  const isMobile = screenWidth < 768;
+  const isTablet = screenWidth >= 768 && screenWidth < 1024;
+
+  useEffect(() => {
+    if (isTablet) {
+      setSidebarCollapsed(true);
+    } else if (screenWidth >= 1024) {
+      setSidebarCollapsed(false);
+    }
+  }, [isTablet, screenWidth]);
 
   // Load recent searches when palette opens
   useEffect(() => {
@@ -436,9 +457,10 @@ export default function App() {
     <div className="flex h-screen w-screen overflow-hidden bg-light-bg dark:bg-dark-bg select-none font-sans nav-transition">
       
       {/* 1. Sidebar Navigation - Upgraded modern minimal look */}
-      <aside className={`bg-white dark:bg-[#070b13] border-r border-light-border dark:border-dark-border flex flex-col justify-between z-30 transition-all duration-300 ${
-        sidebarCollapsed ? "w-16" : "w-64"
-      }`}>
+      {!isMobile && (
+        <aside className={`bg-white dark:bg-[#070b13] border-r border-light-border dark:border-dark-border flex flex-col justify-between z-30 transition-all duration-300 ${
+          sidebarCollapsed ? "w-16" : "w-64"
+        }`}>
         <div>
           {/* Brand header */}
           <div className="p-4 border-b border-light-border dark:border-dark-border flex items-center justify-between">
@@ -548,87 +570,122 @@ export default function App() {
           )}
         </div>
       </aside>
+      )}
 
       {/* 2. Main Content Container */}
       <div className="flex-1 flex flex-col overflow-hidden relative">
         
         {/* Main top bar header */}
-        <header className="h-16 border-b border-light-border dark:border-dark-border bg-white dark:bg-[#070b13] flex justify-between items-center px-6 z-20 shrink-0">
-          {/* Left search picker */}
-          <div className="relative w-80">
-            <div 
-              onClick={() => setShowPalette(true)}
-              className="flex items-center gap-2 px-3 py-2 bg-black/5 dark:bg-white/5 border border-light-border dark:border-dark-border rounded cursor-pointer text-brand-muted hover:border-brand-primary/20 transition-all text-xs"
-            >
-              <Search className="w-4 h-4" />
-              <span>Search stocks, mutual funds, reports (Ctrl+K)...</span>
-            </div>
-          </div>
+        <header className="h-16 border-b border-light-border dark:border-dark-border bg-white dark:bg-[#070b13] flex justify-between items-center px-4 md:px-6 z-20 shrink-0 select-none">
+          {isMobile ? (
+            /* Mobile Header Layout */
+            <>
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={() => setHamburgerOpen(true)}
+                  className="p-2 rounded border border-light-border dark:border-dark-border hover:bg-black/5 dark:hover:bg-white/5 text-brand-muted"
+                  style={{ minWidth: "40px", minHeight: "40px" }}
+                >
+                  <Menu className="w-4.5 h-4.5" />
+                </button>
+                <span className="text-xs font-black tracking-wider text-slate-800 dark:text-white font-sans uppercase">WealthPilot</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setShowPalette(true)}
+                  className="p-2 rounded border border-light-border dark:border-dark-border hover:bg-black/5 dark:hover:bg-white/5 text-brand-muted"
+                  style={{ minWidth: "40px", minHeight: "40px" }}
+                >
+                  <Search className="w-4 h-4" />
+                </button>
+                <button
+                  onClick={() => setTheme(prev => prev === "dark" ? "light" : "dark")}
+                  className="p-2 rounded border border-light-border dark:border-dark-border hover:bg-black/5 dark:hover:bg-white/5 text-brand-muted"
+                  style={{ minWidth: "40px", minHeight: "40px" }}
+                >
+                  {theme === "dark" ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+                </button>
+              </div>
+            </>
+          ) : (
+            /* Desktop/Tablet Header Layout */
+            <>
+              {/* Left search picker */}
+              <div className="relative w-80">
+                <div 
+                  onClick={() => setShowPalette(true)}
+                  className="flex items-center gap-2 px-3 py-2 bg-black/5 dark:bg-white/5 border border-light-border dark:border-dark-border rounded cursor-pointer text-brand-muted hover:border-brand-primary/20 transition-all text-xs"
+                >
+                  <Search className="w-4 h-4" />
+                  <span>Search stocks, mutual funds, reports (Ctrl+K)...</span>
+                </div>
+              </div>
 
-          {/* Right Header Options */}
-          <div className="flex items-center gap-4">
-            {/* Active Ticker Context tag */}
-            {activeTab !== "funds" && activeTab !== "portfolio" && activeTab !== "academy" && (
-              <span className="text-xs font-mono font-bold bg-brand-primary/10 text-brand-primary px-3 py-1 rounded">
-                STOCK: {ticker}
-              </span>
-            )}
+              {/* Right Header Options */}
+              <div className="flex items-center gap-4">
+                {/* Active Ticker Context tag */}
+                {activeTab !== "funds" && activeTab !== "portfolio" && activeTab !== "academy" && (
+                  <span className="text-xs font-mono font-bold bg-brand-primary/10 text-brand-primary px-3 py-1 rounded">
+                    STOCK: {ticker}
+                  </span>
+                )}
 
-            {/* Bookmark button */}
-            {activeTab !== "funds" && activeTab !== "portfolio" && activeTab !== "academy" && (
-              <button
-                onClick={handleToggleBookmark}
-                className={`p-2 rounded border border-light-border dark:border-dark-border hover:bg-black/5 dark:hover:bg-white/5 transition-colors ${
-                  bookmarked ? "text-brand-warning bg-brand-warning/5" : "text-brand-muted"
-                }`}
-              >
-                <Bookmark className="w-4 h-4" />
-              </button>
-            )}
+                {/* Bookmark button */}
+                {activeTab !== "funds" && activeTab !== "portfolio" && activeTab !== "academy" && (
+                  <button
+                    onClick={handleToggleBookmark}
+                    className={`p-2 rounded border border-light-border dark:border-dark-border hover:bg-black/5 dark:hover:bg-white/5 transition-colors ${
+                      bookmarked ? "text-brand-warning bg-brand-warning/5" : "text-brand-muted"
+                    }`}
+                  >
+                    <Bookmark className="w-4 h-4" />
+                  </button>
+                )}
 
-            {/* Currency Selector */}
-            <div className="flex items-center gap-2 border border-light-border dark:border-dark-border rounded px-2.5 py-1 bg-black/5 dark:bg-white/5">
-              <Coins className="w-3.5 h-3.5 text-brand-primary" />
-              <select
-                value={selectedSelector}
-                onChange={(e) => handleSelectorChange(e.target.value)}
-                className="text-[11px] font-bold bg-transparent border-none text-slate-700 dark:text-slate-300 focus:outline-none cursor-pointer uppercase font-sans"
-              >
-                <option value="AUTO" className="bg-white dark:bg-[#0c111d] text-slate-800 dark:text-white">Auto</option>
-                <option value="INR" className="bg-white dark:bg-[#0c111d] text-slate-800 dark:text-white">INR (₹)</option>
-                <option value="USD" className="bg-white dark:bg-[#0c111d] text-slate-800 dark:text-white">USD ($)</option>
-                <option value="EUR" className="bg-white dark:bg-[#0c111d] text-slate-800 dark:text-white">EUR (€)</option>
-                <option value="GBP" className="bg-white dark:bg-[#0c111d] text-slate-800 dark:text-white">GBP (£)</option>
-                <option value="JPY" className="bg-white dark:bg-[#0c111d] text-slate-800 dark:text-white">JPY (¥)</option>
-              </select>
-            </div>
+                {/* Currency Selector */}
+                <div className="flex items-center gap-2 border border-light-border dark:border-dark-border rounded px-2.5 py-1 bg-black/5 dark:bg-white/5">
+                  <Coins className="w-3.5 h-3.5 text-brand-primary" />
+                  <select
+                    value={selectedSelector}
+                    onChange={(e) => handleSelectorChange(e.target.value)}
+                    className="text-[11px] font-bold bg-transparent border-none text-slate-700 dark:text-slate-300 focus:outline-none cursor-pointer uppercase font-sans"
+                  >
+                    <option value="AUTO" className="bg-white dark:bg-[#0c111d] text-slate-800 dark:text-white">Auto</option>
+                    <option value="INR" className="bg-white dark:bg-[#0c111d] text-slate-800 dark:text-white">INR (₹)</option>
+                    <option value="USD" className="bg-white dark:bg-[#0c111d] text-slate-800 dark:text-white">USD ($)</option>
+                    <option value="EUR" className="bg-white dark:bg-[#0c111d] text-slate-800 dark:text-white">EUR (€)</option>
+                    <option value="GBP" className="bg-white dark:bg-[#0c111d] text-slate-800 dark:text-white">GBP (£)</option>
+                    <option value="JPY" className="bg-white dark:bg-[#0c111d] text-slate-800 dark:text-white">JPY (¥)</option>
+                  </select>
+                </div>
 
-            {/* Currency Peg & Timestamp */}
-            {targetCurrency !== "USD" && (
-              <span className="text-[9px] font-mono text-brand-muted hidden lg:inline">
-                Peg: 1 USD = {CURRENCY_SYMBOLS[targetCurrency] || targetCurrency}{EXCHANGE_RATES[targetCurrency]} (Live)
-              </span>
-            )}
+                {targetCurrency !== "USD" && (
+                  <span className="text-[9px] font-mono text-brand-muted hidden lg:inline">
+                    Peg: 1 USD = {CURRENCY_SYMBOLS[targetCurrency] || targetCurrency}{EXCHANGE_RATES[targetCurrency]} (Live)
+                  </span>
+                )}
 
-            {/* Dark/Light mode toggle */}
-            <button
-              onClick={() => setTheme(prev => prev === "dark" ? "light" : "dark")}
-              className="p-2 rounded border border-light-border dark:border-dark-border hover:bg-black/5 dark:hover:bg-white/5 text-brand-muted transition-colors"
-            >
-              {theme === "dark" ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
-            </button>
+                {/* Dark/Light mode toggle */}
+                <button
+                  onClick={() => setTheme(prev => prev === "dark" ? "light" : "dark")}
+                  className="p-2 rounded border border-light-border dark:border-dark-border hover:bg-black/5 dark:hover:bg-white/5 text-brand-muted transition-colors"
+                >
+                  {theme === "dark" ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+                </button>
 
-            {/* AI Copilot toggle button */}
-            <button
-              onClick={() => setShowCopilot(prev => !prev)}
-              className={`p-2 rounded border border-light-border dark:border-dark-border hover:bg-black/5 dark:hover:bg-white/5 transition-colors ${
-                showCopilot ? "text-brand-primary bg-brand-primary/5" : "text-brand-muted"
-              }`}
-              title="AI Copilot (Ctrl+B)"
-            >
-              <MessageSquare className="w-4 h-4" />
-            </button>
-          </div>
+                {/* AI Copilot toggle button */}
+                <button
+                  onClick={() => setShowCopilot(prev => !prev)}
+                  className={`p-2 rounded border border-light-border dark:border-dark-border hover:bg-black/5 dark:hover:bg-white/5 transition-colors ${
+                    showCopilot ? "text-brand-primary bg-brand-primary/5" : "text-brand-muted"
+                  }`}
+                  title="AI Copilot (Ctrl+B)"
+                >
+                  <MessageSquare className="w-4 h-4" />
+                </button>
+              </div>
+            </>
+          )}
         </header>
 
         {/* View render area */}
@@ -650,45 +707,129 @@ export default function App() {
         </main>
 
         {/* Mobile Responsive Bottom tab navigation */}
-        <div className="md:hidden border-t border-light-border dark:border-dark-border bg-white dark:bg-[#070b13] h-14 flex items-center justify-around z-20 shrink-0">
+        <div className="md:hidden border-t border-light-border dark:border-dark-border bg-white dark:bg-[#070b13] flex items-center justify-around z-20 shrink-0 select-none pb-safe" style={{ minHeight: "60px" }}>
           {[
-            { id: "dashboard", icon: LayoutDashboard, label: "Home" },
+            { id: "dashboard", icon: LayoutDashboard, label: "Dashboard" },
+            { id: "market", icon: Globe, label: "Markets" },
             { id: "portfolio", icon: Briefcase, label: "Portfolio" },
-            { id: "funds", icon: Coins, label: "Funds" },
-            { id: "fundamentals", icon: BarChart3, label: "Stocks" }
+            { id: "fundamentals", icon: BarChart3, label: "Research" },
+            { id: "copilot", icon: MessageSquare, label: "Copilot" }
           ].map(t => {
             const Icon = t.icon;
-            const isActive = activeTab === t.id;
+            const isActive = t.id === "copilot" ? showCopilot : (activeTab === t.id && !showCopilot);
             return (
               <button
                 key={t.id}
-                onClick={() => setActiveTab(t.id)}
-                className={`flex flex-col items-center gap-1 ${isActive ? "text-brand-primary" : "text-brand-muted"}`}
+                onClick={() => {
+                  if (t.id === "copilot") {
+                    setShowCopilot(true);
+                  } else {
+                    setShowCopilot(false);
+                    setActiveTab(t.id);
+                  }
+                }}
+                className={`flex flex-col items-center gap-1 py-1 flex-1 ${isActive ? "text-brand-primary font-bold" : "text-brand-muted"}`}
+                style={{ minHeight: "48px" }}
               >
-                <Icon className="w-5 h-5" />
-                <span className="text-[9px] uppercase font-bold">{t.label}</span>
+                <Icon className="w-5 h-5 shrink-0" />
+                <span className="text-[9px] uppercase tracking-wider">{t.label}</span>
               </button>
             );
           })}
         </div>
       </div>
 
+      {/* Floating AI Copilot Action Button (FAB) on Mobile */}
+      {isMobile && !showCopilot && (
+        <button
+          onClick={() => setShowCopilot(true)}
+          className="fixed right-4 bottom-20 h-12 w-12 rounded-full bg-brand-primary text-white flex items-center justify-center shadow-lg border border-white/20 hover:scale-105 active:scale-95 transition-all z-40"
+          style={{ minWidth: "48px", minHeight: "48px" }}
+          title="Open AI Copilot"
+        >
+          <Cpu className="w-5 h-5 animate-pulse" />
+        </button>
+      )}
+
+      {/* Slide-over Hamburger menu drawer on mobile/tablet */}
+      {hamburgerOpen && (
+        <div className="fixed inset-0 z-50 flex">
+          {/* Overlay backdrop */}
+          <div 
+            onClick={() => setHamburgerOpen(false)}
+            className="fixed inset-0 bg-black/60 backdrop-blur-xs transition-opacity" 
+          />
+          {/* Drawer content sheet */}
+          <div className="relative flex-1 flex flex-col max-w-[280px] w-full bg-white dark:bg-[#070b13] border-r border-light-border dark:border-dark-border h-full shadow-2xl z-10 transition-transform">
+            <div className="p-4 border-b border-light-border dark:border-dark-border flex justify-between items-center bg-black/5 dark:bg-white/5" style={{ minHeight: "60px" }}>
+              <span className="text-xs font-black uppercase text-brand-primary tracking-widest">Navigation menu</span>
+              <button 
+                onClick={() => setHamburgerOpen(false)} 
+                className="text-brand-muted hover:text-slate-800 dark:hover:text-white p-1"
+                style={{ minWidth: "44px", minHeight: "44px" }}
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            
+            {/* Sidebar groups map */}
+            <nav className="flex-1 overflow-y-auto p-4 space-y-4">
+              {sidebarGroups.map((group, idx) => (
+                <div key={idx} className="space-y-1">
+                  <span className="text-[8px] font-black text-brand-muted tracking-widest uppercase block mb-1 px-1">{group.name}</span>
+                  {group.items.map((tab) => {
+                    const Icon = tab.icon;
+                    const isActive = activeTab === tab.id;
+                    return (
+                      <button
+                        key={tab.id}
+                        onClick={() => {
+                          setActiveTab(tab.id);
+                          setHamburgerOpen(false);
+                          setShowCopilot(false);
+                        }}
+                        className={`flex items-center gap-3 w-full rounded text-xs p-2.5 text-left transition-colors border ${
+                          isActive 
+                            ? "bg-brand-primary/10 border-brand-primary/20 text-brand-primary font-bold" 
+                            : "bg-transparent border-transparent text-brand-muted hover:bg-black/5 dark:hover:bg-white/5"
+                        }`}
+                        style={{ minHeight: "48px" }}
+                      >
+                        <Icon className="w-4.5 h-4.5 shrink-0" />
+                        <span>{tab.label}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              ))}
+            </nav>
+            <div className="p-4 border-t border-light-border dark:border-dark-border text-[9px] text-brand-muted font-mono text-center">
+              WEALTHPILOT v3.1 RESPONSIVE
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* 3. Sliding AI Copilot drawer sidebar */}
       {showCopilot && (
-        <aside className="w-96 bg-white dark:bg-[#070b13] border-l border-light-border dark:border-dark-border flex flex-col justify-between z-30 relative shrink-0">
+        <aside className={`bg-white dark:bg-[#070b13] border-l border-light-border dark:border-dark-border flex flex-col justify-between shrink-0 transition-all duration-300 ${
+          isMobile 
+            ? "fixed inset-0 w-full h-full z-50" 
+            : "w-96 relative h-auto z-30"
+        }`}>
           {/* Header */}
-          <div className="p-4 border-b border-light-border dark:border-dark-border flex justify-between items-center bg-black/5 dark:bg-white/5">
+          <div className="p-4 border-b border-light-border dark:border-dark-border flex justify-between items-center bg-black/5 dark:bg-white/5" style={{ minHeight: "60px" }}>
             <div className="flex items-center gap-2">
               <MessageSquare className="w-4 h-4 text-brand-primary" />
               <span className="font-bold text-xs uppercase tracking-wider text-slate-800 dark:text-white">AI Wealth Copilot</span>
             </div>
-            <button onClick={() => setShowCopilot(false)} className="text-brand-muted hover:text-slate-800 dark:hover:text-white">
-              <X className="w-4 h-4" />
+            <button onClick={() => setShowCopilot(false)} className="text-brand-muted hover:text-slate-800 dark:hover:text-white p-2" style={{ minWidth: "44px", minHeight: "44px" }}>
+              <X className="w-5 h-5" />
             </button>
           </div>
 
           {/* Chat history list */}
-          <div className="flex-1 p-4 space-y-4 overflow-y-auto max-h-[calc(100vh-120px)] pr-2">
+          <div className="flex-1 p-4 space-y-4 overflow-y-auto max-h-[calc(100vh-130px)] pr-2">
             {chatMessages.map((msg, idx) => (
               <div key={idx} className={`space-y-1 ${msg.sender === "user" ? "text-right" : "text-left"}`}>
                 <span className="text-[9px] text-brand-muted uppercase font-mono block">
@@ -709,18 +850,39 @@ export default function App() {
           </div>
 
           {/* Input form */}
-          <form onSubmit={handleChatSubmit} className="p-4 border-t border-light-border dark:border-dark-border flex gap-2">
-            <input
-              type="text"
-              value={chatInput}
-              onChange={(e) => setChatInput(e.target.value)}
-              placeholder="Ask Copilot (e.g., 'Compare HDFC Midcap and SBI Bluechip')..."
-              className="flex-1 text-xs px-3 py-2 rounded border border-light-border dark:border-dark-border bg-black/5 dark:bg-white/5 focus:outline-none focus:border-brand-primary text-slate-800 dark:text-white"
-            />
+          <form onSubmit={handleChatSubmit} className="p-4 border-t border-light-border dark:border-dark-border flex gap-2 items-center">
+            <div className="flex-1 relative">
+              <input
+                type="text"
+                value={chatInput}
+                onChange={(e) => setChatInput(e.target.value)}
+                placeholder="Ask Copilot..."
+                className="w-full text-xs pl-3 pr-8 py-2.5 rounded border border-light-border dark:border-dark-border bg-black/5 dark:bg-white/5 focus:outline-none focus:border-brand-primary text-slate-800 dark:text-white"
+                style={{ minHeight: "44px" }}
+              />
+              <button
+                type="button"
+                onClick={() => {
+                  const speechOptions = [
+                    "Compare SBI Bluechip and Nippon Smallcap",
+                    "Analyze my portfolio diversification and CAGR",
+                    "Highlight recent news for Reliance Industries",
+                    "Explain Sharpe and Sortino ratios for a moderate horizon"
+                  ];
+                  const rand = speechOptions[Math.floor(Math.random() * speechOptions.length)];
+                  setChatInput(rand);
+                }}
+                className="absolute right-2 top-2.5 text-brand-muted hover:text-brand-primary p-0.5 rounded"
+                title="Mock Voice Input (Simulated)"
+              >
+                <Mic className="w-4.5 h-4.5" />
+              </button>
+            </div>
             <button
               type="submit"
               disabled={chatLoading}
               className="px-4 py-2 bg-brand-primary hover:bg-brand-primary/95 text-white font-bold text-xs uppercase rounded transition-colors disabled:opacity-50"
+              style={{ minHeight: "44px" }}
             >
               Send
             </button>
@@ -730,11 +892,17 @@ export default function App() {
 
       {/* 4. UPGRADED COMMAND PALETTE MODAL (Ctrl+K overlay) - categorized results */}
       {showPalette && (
-        <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm flex items-start justify-center pt-24 z-50">
-          <div className="w-[600px] bg-white dark:bg-[#070b13] border border-light-border dark:border-dark-border rounded-lg shadow-xl flex flex-col overflow-hidden max-h-[500px]">
+        <div className={`fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex ${
+          isMobile ? "items-stretch" : "items-start justify-center pt-24"
+        }`}>
+          <div className={`bg-white dark:bg-[#070b13] border border-light-border dark:border-dark-border flex flex-col overflow-hidden shadow-xl ${
+            isMobile 
+              ? "w-full h-full" 
+              : "w-[600px] rounded-lg max-h-[500px]"
+          }`}>
             {/* Header input */}
-            <div className="p-3 border-b border-light-border dark:border-dark-border flex items-center gap-3 bg-black/5 dark:bg-white/5">
-              <Search className="w-5 h-5 text-brand-primary" />
+            <div className="p-3 border-b border-light-border dark:border-dark-border flex items-center gap-3 bg-black/5 dark:bg-white/5" style={{ minHeight: "60px" }}>
+              <Search className="w-5 h-5 text-brand-primary shrink-0" />
               <input
                 type="text"
                 autoFocus
@@ -743,7 +911,13 @@ export default function App() {
                 placeholder="Search stocks, mutual funds, reports, learning topics..."
                 className="flex-1 text-xs bg-transparent focus:outline-none text-slate-800 dark:text-white"
               />
-              <button onClick={() => setShowPalette(false)} className="text-brand-muted hover:text-slate-800 dark:hover:text-white font-bold">&times;</button>
+              <button 
+                onClick={() => setShowPalette(false)} 
+                className="text-brand-muted hover:text-slate-800 dark:hover:text-white text-xs font-bold border border-light-border dark:border-dark-border rounded px-2.5 py-1.5"
+                style={{ minWidth: "44px", minHeight: "44px" }}
+              >
+                Close
+              </button>
             </div>
 
             {/* Categorized Results list */}

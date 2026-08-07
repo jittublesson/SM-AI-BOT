@@ -99,6 +99,15 @@ export const MutualFundsView: React.FC<MutualFundsViewProps> = ({ targetCurrency
   const [lumpPeriod, setLumpPeriod] = useState(10);
   const [lumpResult, setLumpResult] = useState<any>(null);
 
+  // Responsive state
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+
+  useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth < 768);
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
+
   // Toast notification
   const [toastMsg, setToastMsg] = useState<string | null>(null);
 
@@ -567,34 +576,59 @@ export const MutualFundsView: React.FC<MutualFundsViewProps> = ({ targetCurrency
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 <div className="lg:col-span-2 glass-card p-4 rounded-lg flex flex-col space-y-4">
                   <h3 className="text-xs font-black uppercase text-brand-primary tracking-wider border-b border-light-border dark:border-dark-border pb-2">Fund Return Matrix</h3>
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-xs font-mono text-center">
-                      <thead>
-                        <tr className="text-brand-muted border-b border-light-border dark:border-dark-border">
-                          <th className="py-2 px-1 text-left font-sans">Period</th>
-                          <th className="py-2 px-1">1M</th>
-                          <th className="py-2 px-1">3M</th>
-                          <th className="py-2 px-1">6M</th>
-                          <th className="py-2 px-1">1Y</th>
-                          <th className="py-2 px-1">3Y</th>
-                          <th className="py-2 px-1">5Y</th>
-                          <th className="py-2 px-1 font-sans">Inception</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-light-border dark:divide-dark-border">
-                        <tr className="font-bold">
-                          <td className="py-2.5 px-1 text-left font-sans text-slate-800 dark:text-slate-200">Return Rate</td>
-                          <td className="py-2.5 px-1 text-brand-secondary">{selectedFund.returns["1m"]}</td>
-                          <td className="py-2.5 px-1 text-brand-secondary">{selectedFund.returns["3m"]}</td>
-                          <td className="py-2.5 px-1 text-brand-secondary">{selectedFund.returns["6m"]}</td>
-                          <td className="py-2.5 px-1 text-brand-secondary">{selectedFund.returns["1y"]}</td>
-                          <td className="py-2.5 px-1 text-brand-secondary">{selectedFund.returns["3y"]}</td>
-                          <td className="py-2.5 px-1 text-brand-secondary">{selectedFund.returns["5y"]}</td>
-                          <td className="py-2.5 px-1 text-brand-primary">{selectedFund.returns["inception"]}</td>
-                        </tr>
-                      </tbody>
-                    </table>
-                  </div>
+                  {isMobile ? (
+                    /* Mobile: 2-col grid of period cards */
+                    <div className="grid grid-cols-2 gap-2 font-mono">
+                      {[
+                        { label: "1 Month", key: "1m" },
+                        { label: "3 Month", key: "3m" },
+                        { label: "6 Month", key: "6m" },
+                        { label: "1 Year",  key: "1y" },
+                        { label: "3 Year",  key: "3y" },
+                        { label: "5 Year",  key: "5y" },
+                        { label: "Since Inception", key: "inception" },
+                      ].map((p) => {
+                        const val = selectedFund.returns[p.key] ?? "—";
+                        const isPos = !val.startsWith("-");
+                        return (
+                          <div key={p.key} className="glass-card p-3 rounded-xl border border-light-border dark:border-dark-border text-center">
+                            <span className="text-[9px] uppercase tracking-wider text-brand-muted block font-sans">{p.label}</span>
+                            <span className={`text-sm font-black mt-1 block ${isPos ? "text-brand-secondary" : "text-brand-danger"}`}>{val}</span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    /* Desktop: standard table */
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-xs font-mono text-center">
+                        <thead>
+                          <tr className="text-brand-muted border-b border-light-border dark:border-dark-border">
+                            <th className="py-2 px-1 text-left font-sans">Period</th>
+                            <th className="py-2 px-1">1M</th>
+                            <th className="py-2 px-1">3M</th>
+                            <th className="py-2 px-1">6M</th>
+                            <th className="py-2 px-1">1Y</th>
+                            <th className="py-2 px-1">3Y</th>
+                            <th className="py-2 px-1">5Y</th>
+                            <th className="py-2 px-1 font-sans">Inception</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-light-border dark:divide-dark-border">
+                          <tr className="font-bold">
+                            <td className="py-2.5 px-1 text-left font-sans text-slate-800 dark:text-slate-200">Return Rate</td>
+                            <td className="py-2.5 px-1 text-brand-secondary">{selectedFund.returns["1m"]}</td>
+                            <td className="py-2.5 px-1 text-brand-secondary">{selectedFund.returns["3m"]}</td>
+                            <td className="py-2.5 px-1 text-brand-secondary">{selectedFund.returns["6m"]}</td>
+                            <td className="py-2.5 px-1 text-brand-secondary">{selectedFund.returns["1y"]}</td>
+                            <td className="py-2.5 px-1 text-brand-secondary">{selectedFund.returns["3y"]}</td>
+                            <td className="py-2.5 px-1 text-brand-secondary">{selectedFund.returns["5y"]}</td>
+                            <td className="py-2.5 px-1 text-brand-primary">{selectedFund.returns["inception"]}</td>
+                          </tr>
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
                 </div>
 
                 <div className="glass-card p-4 rounded-lg flex flex-col space-y-4">
