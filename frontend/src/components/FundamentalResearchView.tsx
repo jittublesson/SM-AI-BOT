@@ -5,7 +5,7 @@ import {
   UserCheck, PieChart, GitBranch, Star, AlertTriangle, BarChart2, Sparkles, Trash2
 } from "lucide-react";
 import { formatPrice, formatFinancialValue, convertCurrency, CURRENCY_SYMBOLS } from "../utils/currency";
-import { AdvancedChartingView } from "./AdvancedChartingView";
+import { TradingViewChart } from "./TradingViewChart";
 
 interface FundamentalResearchViewProps {
   ticker: string;
@@ -19,15 +19,25 @@ export const FundamentalResearchView: React.FC<FundamentalResearchViewProps> = (
   const [activeSubTab, setActiveSubTab] = useState<string>("overview");
   const [activeExplainMetric, setActiveExplainMetric] = useState<string>("roe");
   const [noteText, setNoteText] = useState("");
-  const [exportTarget, setExportTarget] = useState<string | null>(null);
-  const [exportSteps, setExportSteps] = useState<string[]>([]);
+  
+  // Modular Report Generator States
+  const [selectedModules, setSelectedModules] = useState<Record<string, boolean>>({
+    executive_summary: true,
+    business_model: true,
+    financial_analysis: true,
+    valuation: true,
+    risk_analysis: true,
+    technical_analysis: false,
+    ownership: false
+  });
+  
   const [exportLoading, setExportLoading] = useState(false);
   const [toastMsg, setToastMsg] = useState<string | null>(null);
 
-  // Chat sidebar states
+  // Collapsible Q&A Chat Assistant
   const [chatOpen, setChatOpen] = useState(false);
   const [chatMessages, setChatMessages] = useState<any[]>([
-    { sender: "ai", text: `Loaded filing indices for ${ticker.toUpperCase()}. Ask me about margins, auditor opinion, or balance sheet risks.` }
+    { sender: "ai", text: `Loaded filing databases for ${ticker.toUpperCase()}. Ask me about margins, auditor opinion, or balance sheet risks.` }
   ]);
   const [chatInput, setChatInput] = useState("");
   const [chatLoading, setChatLoading] = useState(false);
@@ -37,23 +47,31 @@ export const FundamentalResearchView: React.FC<FundamentalResearchViewProps> = (
     setTimeout(() => setToastMsg(null), 3000);
   };
 
-  const handleExportInstitutionalReport = async () => {
+  const handleModuleToggle = (mod: string) => {
+    setSelectedModules(prev => ({ ...prev, [mod]: !prev[mod] }));
+  };
+
+  const handleExportModularReport = async () => {
+    setExportLoading(true);
     try {
-      const res = await fetch(`/api/v1/analyst/report/${ticker}`);
+      const activeMods = Object.keys(selectedModules).filter(k => selectedModules[k]).join(",");
+      const res = await fetch(`/api/v1/analyst/report/${ticker}?modules=${activeMods}`);
       if (res.ok) {
         const json = await res.json();
         const blob = new Blob([json.report_markdown], { type: "text/markdown;charset=utf-8" });
         const url = URL.createObjectURL(blob);
         const link = document.createElement("a");
         link.href = url;
-        link.setAttribute("download", `WealthPilot_Institutional_Report_${ticker}.md`);
+        link.setAttribute("download", `WealthPilot_Modular_Report_${ticker}.md`);
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
-        showToast("Markdown institutional report downloaded successfully!");
+        showToast("Modular RAG report downloaded successfully!");
       }
     } catch (err) {
       console.error(err);
+    } finally {
+      setExportLoading(false);
     }
   };
 
@@ -79,7 +97,7 @@ export const FundamentalResearchView: React.FC<FundamentalResearchViewProps> = (
     fetchProfile();
     setActiveSubTab("overview");
     setChatMessages([
-      { sender: "ai", text: `Loaded filing indices for ${ticker.toUpperCase()}. Ask me about margins, auditor opinion, or balance sheet risks.` }
+      { sender: "ai", text: `Loaded filing databases for ${ticker.toUpperCase()}. Ask me about margins, auditor opinion, or balance sheet risks.` }
     ]);
   }, [ticker]);
 
@@ -119,16 +137,6 @@ export const FundamentalResearchView: React.FC<FundamentalResearchViewProps> = (
     showToast("Workspace note pinned to dashboard!");
   };
 
-  const handleTriggerExport = (type: string) => {
-    setExportTarget(type);
-    setExportLoading(true);
-    setExportSteps(["Initializing document framework...", "Fetching statement histories...", "Formulating SWOT matrices...", "Assembling DCF targets..."]);
-    setTimeout(() => {
-      setExportLoading(false);
-      showToast(`${type} document generated successfully!`);
-    }, 2000);
-  };
-
   const handleChatSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!chatInput.trim()) return;
@@ -139,20 +147,10 @@ export const FundamentalResearchView: React.FC<FundamentalResearchViewProps> = (
     setChatLoading(true);
     
     try {
-      let endpoint = `/api/v1/earnings/analyze?ticker=${ticker}`;
-      if (userMsg.toLowerCase().includes("risk") || userMsg.toLowerCase().includes("opinion") || userMsg.toLowerCase().includes("report")) {
-        endpoint = `/api/v1/documents/analyze?ticker=${ticker}`;
-      }
-      
-      const res = await fetch(endpoint);
+      const res = await fetch(`/api/v1/rag/query?ticker=${ticker}&q=${encodeURIComponent(userMsg)}`);
       if (res.ok) {
         const json = await res.json();
-        let reply = "";
-        if (endpoint.includes("earnings")) {
-          reply = `Tone: ${json.tone}.\nGuidance: ${json.guidance}.\nPositives: ${json.positives.join(", ")}.\nNegatives: ${json.negatives.join(", ")}.`;
-        } else {
-          reply = `Auditor Opinion: ${json.auditor_opinion}.\nGreen Flags: ${json.green_flags.join(", ")}.\nRed Flags: ${json.red_flags.join(", ")}.\nGovernance: ${json.governance_score}.`;
-        }
+        const reply = `${json.answer}\n\n[Citation: ${json.citation.doc}, Section: ${json.citation.section}, Page: ${json.citation.page}] (Confidence: ${json.confidence}%)`;
         setChatMessages(prev => [...prev, { sender: "ai", text: reply }]);
       } else {
         setChatMessages(prev => [...prev, { sender: "ai", text: "I apologize, I was unable to parse that filing details." }]);
@@ -178,9 +176,9 @@ export const FundamentalResearchView: React.FC<FundamentalResearchViewProps> = (
       {/* Main Workspace Body */}
       <div className="flex-1 flex flex-col space-y-6 h-full overflow-y-auto pr-2">
         
-        {/* 1. Header Information Banner */}
+        {/* 1. Header Information Banner & Data Quality Indicators */}
         {data && (
-          <div className="glass-card p-6 rounded-lg grid grid-cols-1 md:grid-cols-4 gap-6 shrink-0">
+          <div className="glass-card p-6 rounded-lg grid grid-cols-1 md:grid-cols-4 gap-6 shrink-0 border border-light-border dark:border-dark-border">
             <div className="md:col-span-3 space-y-3">
               <div className="flex items-center gap-2">
                 <h1 className="text-xl font-bold text-slate-800 dark:text-white font-sans">
@@ -189,7 +187,7 @@ export const FundamentalResearchView: React.FC<FundamentalResearchViewProps> = (
                 <span className="text-[10px] px-2 py-0.5 rounded font-mono uppercase bg-brand-primary/10 text-brand-primary font-bold">
                   {data.profile.info.sector}
                 </span>
-                <span className="text-[9px] px-1.5 py-0.5 rounded font-mono uppercase bg-brand-secondary/10 text-brand-secondary">
+                <span className="text-[9px] px-1.5 py-0.5 rounded font-mono uppercase bg-brand-secondary/10 text-brand-secondary font-bold">
                   Reported in: {sourceCurrency}
                 </span>
               </div>
@@ -197,21 +195,22 @@ export const FundamentalResearchView: React.FC<FundamentalResearchViewProps> = (
                 {data.profile.info.description}
               </p>
             </div>
+            
+            {/* Data Quality & Reliability Dashboard */}
             <div className="p-4 bg-light-bg dark:bg-[#070a10] border border-light-border dark:border-dark-border rounded-lg flex flex-col justify-between">
               <div>
-                <span className="text-[10px] text-brand-muted uppercase font-mono block">Current Stock Price</span>
+                <span className="text-[9px] text-brand-muted uppercase font-bold block">Current Price (NSE/BSE)</span>
                 <span className="text-sm font-mono font-black text-brand-primary mt-1 block">
                   {formatPrice(data.profile.info.price, sourceCurrency, targetCurrency, true)}
                 </span>
               </div>
               <div className="text-[9px] text-brand-muted border-t border-light-border dark:border-dark-border pt-2 mt-2 font-mono space-y-1">
                 <div className="flex justify-between">
-                  <span>Health Score: <span className="font-bold text-brand-secondary">{data.score.score_rating}/100</span></span>
-                  <span>Source: <span className="font-bold">{data.profile.metadata?.data_source || data.profile.data_source}</span></span>
+                  <span>Source: <span className="font-extrabold text-brand-secondary">{data.profile.metadata?.data_source || data.profile.data_source}</span></span>
                 </div>
                 <div className="flex justify-between">
-                  <span>Exchange: <span className="font-bold">{data.profile.metadata?.exchange || "NSE"}</span></span>
-                  <span>Status: <span className={`font-bold ${data.profile.metadata?.market_status === "Open" ? "text-green-500" : "text-gray-400"}`}>{data.profile.metadata?.market_status || "Closed"}</span></span>
+                  <span>Reliability: <span className="font-extrabold text-brand-secondary">{data.profile.metadata?.reliability || "High"}</span></span>
+                  <span>Status: <span className={`font-extrabold ${data.profile.metadata?.market_status === "Open" ? "text-green-500" : "text-gray-400"}`}>{data.profile.metadata?.market_status || "Closed"}</span></span>
                 </div>
                 <div className="flex justify-between text-[8.5px]">
                   <span>Currency: <span className="font-bold">{data.profile.metadata?.currency || sourceCurrency}</span></span>
@@ -222,22 +221,22 @@ export const FundamentalResearchView: React.FC<FundamentalResearchViewProps> = (
           </div>
         )}
 
-        {/* 2. Nested Sub-tab Navigation */}
+        {/* 2. Institutional Sub-tab Navigation */}
         <div className="flex border-b border-light-border dark:border-dark-border pb-1 gap-1 shrink-0 overflow-x-auto">
           {[
-            { id: "overview",          label: "Business Overview",        icon: TrendingUp },
-            { id: "charting",          label: "Advanced Chart",            icon: BarChart2 },
-            { id: "financials",        label: "Financial Statements",      icon: Landmark },
+            { id: "overview",          label: "Overview",                  icon: TrendingUp },
+            { id: "charting",          label: "Technical Chart",           icon: BarChart2 },
+            { id: "financials",        label: "Financials",                icon: Landmark },
             { id: "quarterly",         label: "Quarterly Results",         icon: BarChart2 },
-            { id: "segments",          label: "Segment & Geo",             icon: Grid },
-            { id: "valuation_risks",   label: "Valuation & Risk Audit",    icon: ShieldAlert },
+            { id: "segments",          label: "Segments",                  icon: Grid },
+            { id: "valuation_risks",   label: "Valuation & Risks",         icon: ShieldAlert },
             { id: "management",        label: "Management",                icon: UserCheck },
-            { id: "shareholding",      label: "Shareholding",              icon: PieChart },
+            { id: "shareholding",      label: "Ownership",                 icon: PieChart },
             { id: "corporate_actions", label: "Corporate Actions",         icon: GitBranch },
             { id: "credit_ratings",    label: "Credit Ratings",            icon: Star },
             { id: "governance",        label: "Governance",                icon: Users },
-            { id: "notes",             label: "Research Notes",            icon: BookOpen },
-            { id: "ai_thesis",         label: "Export Report",             icon: Download }
+            { id: "notes",             label: "Workspace Notes",           icon: BookOpen },
+            { id: "ai_thesis",         label: "Modular Report",            icon: Download }
           ].map((tab) => {
             const Icon = tab.icon;
             const isActive = activeSubTab === tab.id;
@@ -261,8 +260,8 @@ export const FundamentalResearchView: React.FC<FundamentalResearchViewProps> = (
         {/* 3. Sub-tab Content Area */}
         <div className="flex-1 overflow-y-auto pr-1 pb-4">
           {loading ? (
-            <div className="flex items-center justify-center py-40 text-brand-muted text-xs">
-              Synthesizing workspace modules...
+            <div className="flex items-center justify-center py-40 text-brand-muted text-xs font-mono">
+              Fetching institutional indices...
             </div>
           ) : data ? (
             <>
@@ -273,7 +272,7 @@ export const FundamentalResearchView: React.FC<FundamentalResearchViewProps> = (
                     <div className="glass-card p-5 rounded-lg border border-brand-primary/20 bg-brand-primary/5 space-y-3">
                       <h3 className="text-xs font-black uppercase text-brand-primary tracking-wider flex items-center gap-1.5">
                         <Sparkles className="w-4 h-4 text-brand-primary animate-pulse" />
-                        Institutional ETF Research Desk
+                        ETF Research Summary
                       </h3>
                       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-xs font-mono">
                         <div className="p-3 bg-black/5 dark:bg-white/5 rounded-xl">
@@ -289,18 +288,18 @@ export const FundamentalResearchView: React.FC<FundamentalResearchViewProps> = (
                           <span className="font-bold text-brand-secondary mt-1 block">{data.profile.info.etf_details.liquidity}</span>
                         </div>
                         <div className="p-3 bg-black/5 dark:bg-white/5 rounded-xl">
-                          <span className="text-[9px] text-brand-muted uppercase font-sans font-bold">NAV Premium / Discount</span>
+                          <span className="text-[9px] text-brand-muted uppercase font-sans font-bold">Premium / Discount</span>
                           <span className="font-bold text-brand-primary mt-1 block">{data.profile.info.etf_details.premium_discount}</span>
                         </div>
                       </div>
                     </div>
                   )}
 
-                  {/* Sankey diagram representation for Revenue Cash Flow */}
-                  <div className="glass-card p-6 rounded-lg flex flex-col space-y-4">
+                  {/* Flowchart representative */}
+                  <div className="glass-card p-6 rounded-lg flex flex-col space-y-4 border border-light-border dark:border-dark-border">
                     <h2 className="text-sm font-bold flex items-center gap-2 border-b border-light-border dark:border-dark-border pb-3">
                       <TrendingUp className="text-brand-primary w-5 h-5" />
-                      Corporate Revenue Cash-Flow Sankey (SVG)
+                      Corporate Revenue Flowchart
                     </h2>
                     <div className="w-full overflow-x-auto py-2">
                       <svg className="w-[800px] h-[300px] mx-auto bg-black/5 dark:bg-white/5 border border-light-border dark:border-dark-border rounded-lg" viewBox="0 0 800 300">
@@ -326,22 +325,21 @@ export const FundamentalResearchView: React.FC<FundamentalResearchViewProps> = (
                         <text x="700" y="65" fill="#fff" fontSize="9" fontFamily="monospace" textAnchor="middle">{formatFinancialValue(data.profile.financials[0]?.pat || 0, sourceCurrency, targetCurrency)}</text>
 
                         <rect x="640" y="110" width="120" height="60" rx="4" fill="#f59e0b" />
-                        <text x="700" y="140" fill="#fff" fontSize="11" fontWeight="bold" textAnchor="middle">CAPEX & OUTFLOWS</text>
+                        <text x="700" y="140" fill="#fff" fontSize="11" fontWeight="bold" textAnchor="middle">CAPEX OUTFLOW</text>
                         <text x="700" y="155" fill="#fff" fontSize="9" fontFamily="monospace" textAnchor="middle">{formatFinancialValue(data.profile.financials[0]?.dividends_paid || 0, sourceCurrency, targetCurrency)}</text>
                       </svg>
                     </div>
                   </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                    {/* SWOT highlights */}
-                    <div className="md:col-span-2 glass-card p-6 rounded-lg flex flex-col space-y-4">
+                    <div className="md:col-span-2 glass-card p-6 rounded-lg flex flex-col space-y-4 border border-light-border dark:border-dark-border">
                       <h2 className="text-sm font-bold flex items-center gap-2 border-b border-light-border dark:border-dark-border pb-3">
                         <Award className="text-brand-secondary w-5 h-5" />
-                        SWOT Highlights & Attractiveness Thesis
+                        Attractiveness Analysis & SWOT
                       </h2>
                       <div className="space-y-4 text-xs">
                         <div className="space-y-2">
-                          <span className="text-[10px] text-brand-secondary font-black uppercase tracking-wider block">Strengths</span>
+                          <span className="text-[10px] text-brand-secondary font-black uppercase tracking-wider block">Key Strengths</span>
                           <div className="space-y-1.5">
                             {data.score.strengths.map((str: string, idx: number) => (
                               <div key={idx} className="flex gap-2">
@@ -353,7 +351,7 @@ export const FundamentalResearchView: React.FC<FundamentalResearchViewProps> = (
                         </div>
 
                         <div className="space-y-2 pt-2 border-t border-light-border dark:border-dark-border">
-                          <span className="text-[10px] text-brand-danger font-black uppercase tracking-wider block">Risks & Weaknesses</span>
+                          <span className="text-[10px] text-brand-danger font-black uppercase tracking-wider block">Risk Factors</span>
                           <div className="space-y-1.5">
                             {data.score.weaknesses.map((weak: string, idx: number) => (
                               <div key={idx} className="flex gap-2">
@@ -363,21 +361,14 @@ export const FundamentalResearchView: React.FC<FundamentalResearchViewProps> = (
                             ))}
                           </div>
                         </div>
-
-                        <div className="p-3 bg-brand-primary/5 rounded border border-brand-primary/10 leading-relaxed text-brand-muted">
-                          <span className="font-bold text-brand-primary uppercase text-[9px] block mb-1">Coordinated Investment Thesis:</span>
-                          {data.score.thesis}
-                        </div>
                       </div>
                     </div>
 
-                    {/* Ratios Explanations */}
-                    <div className="glass-card p-6 rounded-lg flex flex-col space-y-4">
+                    <div className="glass-card p-6 rounded-lg flex flex-col space-y-4 border border-light-border dark:border-dark-border">
                       <h2 className="text-sm font-bold flex items-center gap-2 border-b border-light-border dark:border-dark-border pb-3">
                         <Info className="text-brand-warning w-5 h-5" />
                         Ratios Explanation Guide
                       </h2>
-                      
                       <div className="flex gap-2 border-b border-light-border dark:border-dark-border pb-2 overflow-x-auto">
                         {Object.keys(metricsExplanations).map((key) => (
                           <button
@@ -414,15 +405,15 @@ export const FundamentalResearchView: React.FC<FundamentalResearchViewProps> = (
 
               {/* TAB: ADVANCED CHARTING */}
               {activeSubTab === "charting" && (
-                <AdvancedChartingView ticker={ticker} />
+                <TradingViewChart ticker={ticker} />
               )}
 
               {/* TAB: FINANCIAL STATEMENTS */}
               {activeSubTab === "financials" && (
-                <div className="glass-card p-6 rounded-lg flex flex-col space-y-4">
+                <div className="glass-card p-6 rounded-lg flex flex-col space-y-4 border border-light-border dark:border-dark-border">
                   <h2 className="text-sm font-bold flex items-center gap-2 border-b border-light-border dark:border-dark-border pb-3">
                     <Landmark className="text-brand-primary w-5 h-5" />
-                    Multi-Year Financial Statement Comparisons (Common Size & Growth)
+                    Multi-Year Financial Statements
                   </h2>
                   <div className="overflow-x-auto">
                     <table className="w-full text-xs text-left border-collapse">
@@ -504,12 +495,6 @@ export const FundamentalResearchView: React.FC<FundamentalResearchViewProps> = (
                             <td key={f.year} className="py-2 px-4 text-right text-brand-secondary font-bold">{f.roce}%</td>
                           ))}
                         </tr>
-                        <tr>
-                          <td className="py-2 pr-4 font-sans font-semibold text-slate-800 dark:text-slate-100">Free Cash Flow</td>
-                          {data.profile.financials.map((f: any) => (
-                            <td key={f.year} className="py-2 px-4 text-right text-brand-primary font-bold">{formatFinancialValue(f.free_cash_flow, sourceCurrency, targetCurrency, true)}</td>
-                          ))}
-                        </tr>
                       </tbody>
                     </table>
                   </div>
@@ -519,7 +504,7 @@ export const FundamentalResearchView: React.FC<FundamentalResearchViewProps> = (
               {/* TAB: SEGMENTS */}
               {activeSubTab === "segments" && (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div className="glass-card p-6 rounded-lg flex flex-col space-y-4">
+                  <div className="glass-card p-6 rounded-lg flex flex-col space-y-4 border border-light-border dark:border-dark-border">
                     <h3 className="text-xs font-black uppercase text-brand-primary tracking-wider">Product Revenue Share</h3>
                     <div className="overflow-x-auto">
                       <table className="w-full text-xs text-left border-collapse">
@@ -549,8 +534,8 @@ export const FundamentalResearchView: React.FC<FundamentalResearchViewProps> = (
                     </div>
                   </div>
 
-                  <div className="glass-card p-6 rounded-lg flex flex-col space-y-4">
-                    <h3 className="text-xs font-black uppercase text-brand-primary tracking-wider">Geographic Revenue Breakdown</h3>
+                  <div className="glass-card p-6 rounded-lg flex flex-col space-y-4 border border-light-border dark:border-dark-border">
+                    <h3 className="text-xs font-black uppercase text-brand-primary tracking-wider">Geographic Revenue Share</h3>
                     <div className="overflow-x-auto">
                       <table className="w-full text-xs text-left border-collapse">
                         <thead>
@@ -583,7 +568,7 @@ export const FundamentalResearchView: React.FC<FundamentalResearchViewProps> = (
               {/* TAB: VALUATION & RISKS */}
               {activeSubTab === "valuation_risks" && (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div className="glass-card p-6 rounded-lg flex flex-col space-y-4">
+                  <div className="glass-card p-6 rounded-lg flex flex-col space-y-4 border border-light-border dark:border-dark-border">
                     <h3 className="text-xs font-black uppercase text-brand-primary tracking-wider flex items-center gap-2">
                       <ShieldAlert className="w-4 h-4 text-brand-danger" />
                       Risk Disclosures & Regulatory Changes
@@ -598,7 +583,7 @@ export const FundamentalResearchView: React.FC<FundamentalResearchViewProps> = (
                     </div>
                   </div>
 
-                  <div className="glass-card p-6 rounded-lg flex flex-col space-y-4">
+                  <div className="glass-card p-6 rounded-lg flex flex-col space-y-4 border border-light-border dark:border-dark-border">
                     <h3 className="text-xs font-black uppercase text-brand-primary tracking-wider flex items-center gap-2">
                       <Landmark className="w-4 h-4 text-brand-warning" />
                       Accounting Policy Changes
@@ -620,7 +605,7 @@ export const FundamentalResearchView: React.FC<FundamentalResearchViewProps> = (
               {/* TAB: MANAGEMENT */}
               {activeSubTab === "management" && extData?.management && (
                 <div className="space-y-6">
-                  <div className="glass-card p-6 rounded-lg">
+                  <div className="glass-card p-6 rounded-lg border border-light-border dark:border-dark-border">
                     <h2 className="text-sm font-bold flex items-center gap-2 border-b border-light-border dark:border-dark-border pb-3 mb-4">
                       <UserCheck className="text-brand-primary w-5 h-5" />
                       Key Management Personnel
@@ -651,7 +636,7 @@ export const FundamentalResearchView: React.FC<FundamentalResearchViewProps> = (
               {/* TAB: SHAREHOLDING */}
               {activeSubTab === "shareholding" && (
                 <div className="space-y-6">
-                  <div className="glass-card p-6 rounded-lg space-y-4">
+                  <div className="glass-card p-6 rounded-lg space-y-4 border border-light-border dark:border-dark-border">
                     <h2 className="text-sm font-bold flex items-center gap-2 border-b border-light-border dark:border-dark-border pb-3 mb-4">
                       <PieChart className="text-brand-primary w-5 h-5" />
                       Complete Shareholding Analysis
@@ -692,7 +677,7 @@ export const FundamentalResearchView: React.FC<FundamentalResearchViewProps> = (
               {/* TAB: CORPORATE ACTIONS */}
               {activeSubTab === "corporate_actions" && extData?.corporate_actions && (
                 <div className="space-y-6">
-                  <div className="glass-card p-6 rounded-lg">
+                  <div className="glass-card p-6 rounded-lg border border-light-border dark:border-dark-border">
                     <h2 className="text-sm font-bold flex items-center gap-2 border-b border-light-border dark:border-dark-border pb-3 mb-4">
                       <GitBranch className="text-brand-primary w-5 h-5" />
                       Corporate Actions Timeline
@@ -718,7 +703,7 @@ export const FundamentalResearchView: React.FC<FundamentalResearchViewProps> = (
               {/* TAB: CREDIT RATINGS */}
               {activeSubTab === "credit_ratings" && extData?.credit_ratings && (
                 <div className="space-y-6">
-                  <div className="glass-card p-6 rounded-lg">
+                  <div className="glass-card p-6 rounded-lg border border-light-border dark:border-dark-border">
                     <h2 className="text-sm font-bold flex items-center gap-2 border-b border-light-border dark:border-dark-border pb-3 mb-4">
                       <Star className="text-brand-warning w-5 h-5" />
                       Credit Ratings
@@ -752,13 +737,13 @@ export const FundamentalResearchView: React.FC<FundamentalResearchViewProps> = (
               {/* TAB: GOVERNANCE */}
               {activeSubTab === "governance" && (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div className="glass-card p-6 rounded-lg space-y-3">
+                  <div className="glass-card p-6 rounded-lg space-y-3 border border-light-border dark:border-dark-border">
                     <h3 className="text-xs font-black uppercase text-brand-primary tracking-wider border-b border-light-border dark:border-dark-border pb-2">Independent Board Review</h3>
                     <p className="text-xs text-brand-muted leading-relaxed">
                       Auditor checked board structures comply fully with corporate guidelines. Executive and audit committees contain certified accounting experts.
                     </p>
                   </div>
-                  <div className="glass-card p-6 rounded-lg space-y-3">
+                  <div className="glass-card p-6 rounded-lg space-y-3 border border-light-border dark:border-dark-border">
                     <h3 className="text-xs font-black uppercase text-brand-primary tracking-wider border-b border-light-border dark:border-dark-border pb-2">Regulatory Audits</h3>
                     <p className="text-xs text-brand-muted leading-relaxed">
                       Recent filings show zero qualified comments or critical compliance warnings regarding trading transparency or reporting practices.
@@ -770,7 +755,7 @@ export const FundamentalResearchView: React.FC<FundamentalResearchViewProps> = (
               {/* TAB: RESEARCH NOTES */}
               {activeSubTab === "notes" && (
                 <div className="space-y-6">
-                  <div className="glass-card p-6 rounded-lg flex flex-col space-y-4">
+                  <div className="glass-card p-6 rounded-lg flex flex-col space-y-4 border border-light-border dark:border-dark-border">
                     <h2 className="text-sm font-bold flex items-center gap-2 border-b border-light-border dark:border-dark-border pb-3">
                       <BookOpen className="text-brand-primary w-5 h-5" />
                       Interactive Corporate Notes Manager ({ticker.toUpperCase()})
@@ -796,60 +781,44 @@ export const FundamentalResearchView: React.FC<FundamentalResearchViewProps> = (
                 </div>
               )}
 
-              {/* TAB: EXPORT REPORTS */}
+              {/* TAB: MODULAR AI REPORT GENERATOR */}
               {activeSubTab === "ai_thesis" && (
                 <div className="space-y-6">
-                  <div className="glass-card p-6 rounded-lg flex flex-col space-y-4">
+                  <div className="glass-card p-6 rounded-lg flex flex-col space-y-4 border border-light-border dark:border-dark-border">
                     <h2 className="text-sm font-bold flex items-center gap-2 border-b border-light-border dark:border-dark-border pb-3">
                       <Download className="text-brand-primary w-5 h-5" />
-                      Institutional Reports Exporter
+                      Modular Institutional Report Compiler
                     </h2>
-                    <p className="text-xs text-brand-muted leading-relaxed">
-                      Generate production-grade formatted reports including valuation details, SWOT matrices, balance sheets, and independent agent findings.
-                    </p>
                     
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                      {[
-                        { type: "PDF", desc: "For executive presentations" },
-                        { type: "Word", desc: "For analysts review drafts" },
-                        { type: "PowerPoint", desc: "For investment committees" },
-                        { type: "Markdown", desc: "Download full v2.5 RAG report" }
-                      ].map(target => (
-                        <button
-                          key={target.type}
-                          onClick={() => {
-                            if (target.type === "Markdown") {
-                              handleExportInstitutionalReport();
-                            } else {
-                              handleTriggerExport(target.type);
-                            }
-                          }}
-                          disabled={exportLoading}
-                          className="p-4 rounded border border-light-border dark:border-dark-border hover:border-brand-primary/20 bg-black/5 dark:bg-white/5 hover:bg-brand-primary/5 transition-all text-center flex flex-col items-center space-y-2 group disabled:opacity-50"
-                        >
-                          <FileText className="w-6 h-6 text-brand-muted group-hover:text-brand-primary transition-colors" />
-                          <span className="font-bold text-xs text-slate-800 dark:text-slate-200">{target.type}</span>
-                          <span className="text-[9px] text-brand-muted">{target.desc}</span>
-                        </button>
+                    <p className="text-xs text-brand-muted leading-relaxed">
+                      Select target analysis modules below. The AI Agent Coordinator will query the RAG vector files and synthesize your customized investment thesis document.
+                    </p>
+
+                    {/* Section Checkboxes */}
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-xs font-mono py-2">
+                      {Object.keys(selectedModules).map((modKey) => (
+                        <label key={modKey} className="flex items-center gap-2 p-2.5 rounded border border-light-border dark:border-dark-border bg-black/5 dark:bg-white/5 hover:border-brand-primary/20 cursor-pointer">
+                          <input 
+                            type="checkbox" 
+                            checked={selectedModules[modKey]} 
+                            onChange={() => handleModuleToggle(modKey)}
+                            className="rounded text-brand-primary border-light-border dark:border-dark-border focus:ring-brand-primary"
+                          />
+                          <span className="capitalize">{modKey.replace("_", " ")}</span>
+                        </label>
                       ))}
                     </div>
 
-                    {exportLoading && (
-                      <div className="p-4 bg-brand-primary/5 border border-brand-primary/10 rounded-lg space-y-3 font-mono text-[10px] text-brand-primary">
-                        <div className="flex items-center gap-2 font-bold uppercase tracking-wider">
-                          <Cpu className="w-4 h-4 animate-spin text-brand-primary" />
-                          Compiling Corporate Report
-                        </div>
-                        <div className="space-y-1">
-                          {exportSteps.map((step, sIdx) => (
-                            <div key={sIdx} className="flex gap-2">
-                              <span>[+]</span>
-                              <span>{step}</span>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
+                    <div className="flex justify-end border-t border-light-border dark:border-dark-border pt-4 mt-2">
+                      <button 
+                        onClick={handleExportModularReport}
+                        disabled={exportLoading}
+                        className="px-5 py-2.5 bg-brand-primary hover:bg-brand-primary/90 text-white text-xs font-black uppercase tracking-wider rounded font-mono flex items-center gap-2 disabled:opacity-50 transition-all"
+                      >
+                        {exportLoading ? <Cpu className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
+                        Compile Selected Modules (.md)
+                      </button>
+                    </div>
                   </div>
                 </div>
               )}
@@ -869,14 +838,17 @@ export const FundamentalResearchView: React.FC<FundamentalResearchViewProps> = (
         className="fixed bottom-6 right-6 z-40 bg-brand-primary hover:bg-brand-primary/95 text-white p-3.5 rounded-full shadow-2xl flex items-center gap-2 font-bold text-[10px] uppercase font-mono tracking-wider"
       >
         <Cpu className="w-4 h-4" />
-        Statement Q&A
+        Filing Q&A RAG
       </button>
 
-      {/* AI Statement Assistant Drawer (Right Sidebar) */}
+      {/* AI RAG Statement Assistant Drawer (Right Sidebar) */}
       {chatOpen && (
         <aside className="w-80 border-l border-light-border dark:border-dark-border bg-white dark:bg-[#070b13] flex flex-col h-full shrink-0 z-50">
           <div className="p-4 border-b border-light-border dark:border-dark-border flex justify-between items-center bg-black/5 dark:bg-white/5">
-            <span className="text-xs font-black uppercase text-brand-primary tracking-wider">Statement Q&A Desk</span>
+            <span className="text-xs font-black uppercase text-brand-primary tracking-wider flex items-center gap-1">
+              <Sparkles className="w-4 h-4 text-brand-primary" />
+              Filing Q&A RAG
+            </span>
             <button onClick={() => setChatOpen(false)} className="text-brand-muted hover:text-slate-800 dark:hover:text-white font-bold">&times;</button>
           </div>
 
@@ -885,9 +857,9 @@ export const FundamentalResearchView: React.FC<FundamentalResearchViewProps> = (
             {chatMessages.map((m, idx) => (
               <div 
                 key={idx} 
-                className={`p-3 rounded-xl max-w-[85%] leading-relaxed ${
+                className={`p-3 rounded-xl max-w-[90%] leading-relaxed ${
                   m.sender === "user" 
-                    ? "ml-auto bg-brand-primary text-white" 
+                    ? "ml-auto bg-brand-primary text-white font-semibold" 
                     : "bg-black/5 dark:bg-white/5 border border-light-border dark:border-dark-border text-slate-800 dark:text-slate-200"
                 }`}
               >
@@ -895,9 +867,9 @@ export const FundamentalResearchView: React.FC<FundamentalResearchViewProps> = (
               </div>
             ))}
             {chatLoading && (
-              <div className="bg-black/5 dark:bg-white/5 border border-light-border dark:border-dark-border p-3 rounded-xl max-w-[85%] text-brand-muted italic flex items-center gap-2">
+              <div className="bg-black/5 dark:bg-white/5 border border-light-border dark:border-dark-border p-3 rounded-xl max-w-[90%] text-brand-muted italic flex items-center gap-2">
                 <Cpu className="w-3.5 h-3.5 animate-spin" />
-                Scanning statement line citations...
+                Scanning statement chunks...
               </div>
             )}
           </div>
@@ -908,7 +880,7 @@ export const FundamentalResearchView: React.FC<FundamentalResearchViewProps> = (
               type="text"
               value={chatInput}
               onChange={(e) => setChatInput(e.target.value)}
-              placeholder="Ask why margins fell or explain debt..."
+              placeholder="Ask why margins fell or explain page 44..."
               className="flex-1 text-[11px] px-2.5 py-1.5 rounded border border-light-border dark:border-dark-border bg-black/5 dark:bg-white/5 focus:outline-none focus:border-brand-primary text-slate-800 dark:text-white"
             />
             <button 
