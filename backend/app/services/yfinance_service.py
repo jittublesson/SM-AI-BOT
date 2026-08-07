@@ -1,8 +1,6 @@
 import yfinance as yf
 import pandas as pd
-import numpy as np
-from typing import Dict, Any, List
-import traceback
+from typing import Dict, Any, List, Optional
 import time
 import urllib.request
 import json
@@ -25,80 +23,9 @@ def get_cached(key: str, ttl: int) -> Any:
 def set_cached(key: str, val: Any):
     _CACHE[key] = (val, time.time())
 
-CACHE_TTL_PRICE = 120        # 2 minutes for price details
-CACHE_TTL_FINANCIALS = 43200 # 12 hours for heavy statements / profiles
-CACHE_TTL_SEARCH = 300       # 5 minutes for autocomplete results
-
-# Fallback Database
-MOCK_DATABASE = {
-    "AAPL": {
-        "info": {
-            "ticker": "AAPL",
-            "name": "Apple Inc.",
-            "sector": "Technology",
-            "industry": "Consumer Electronics",
-            "description": "Apple Inc. designs, manufactures, and markets smartphones, personal computers, tablets, wearables, and accessories.",
-            "market_cap": 3200000000000.0,
-            "price": 210.50,
-            "currency": "USD",
-            "intraday_change": 1.25,
-            "high_52w": 220.0,
-            "low_52w": 165.0,
-            "volume": 52000000,
-            "delivery_pct": 55.0,
-            "pe": 29.5,
-            "pb": 45.2,
-            "roe": 150.0,
-            "roce": 55.0,
-            "debt_equity": 1.4,
-            "dividend_yield": 0.45,
-            "book_value": 4.5,
-            "face_value": 1.0,
-            "promoter_holding": 0.0,
-            "fii_holding": 58.5,
-            "dii_holding": 28.2,
-            "mutual_fund_holding": 12.0,
-            "public_holding": 13.3
-        },
-        "financials": [
-            {"year": 2025, "revenue": 410000.0, "ebitda": 138000.0, "pat": 109000.0, "eps": 7.20, "operating_cash_flow": 124000.0, "free_cash_flow": 112000.0, "total_debt": 102000.0, "shareholders_equity": 72000.0, "gross_margin": 47.1, "operating_margin": 31.2, "net_margin": 26.6, "roe": 151.4, "roce": 55.8, "current_ratio": 1.12, "quick_ratio": 1.01, "debt_equity": 1.42, "interest_coverage": 29.8, "inventory_days": 8, "working_capital": 11000.0, "dividends_paid": 15500.0},
-            {"year": 2024, "revenue": 391035.0, "ebitda": 129840.0, "pat": 101953.0, "eps": 6.60, "operating_cash_flow": 116433.0, "free_cash_flow": 104500.0, "total_debt": 106000.0, "shareholders_equity": 65000.0, "gross_margin": 46.2, "operating_margin": 30.7, "net_margin": 26.1, "roe": 156.8, "roce": 53.9, "current_ratio": 1.04, "quick_ratio": 0.95, "debt_equity": 1.63, "interest_coverage": 26.5, "inventory_days": 8, "working_capital": 9400.0, "dividends_paid": 15200.0},
-        ]
-    },
-    "RELIANCE.NS": {
-        "info": {
-            "ticker": "RELIANCE.NS",
-            "name": "Reliance Industries Ltd.",
-            "sector": "Energy / Conglomerate",
-            "industry": "Oil & Gas, Retail, Telecom",
-            "description": "Reliance Industries Limited is an Indian multinational conglomerate company, headquartered in Mumbai.",
-            "market_cap": 20000000000000.0,
-            "price": 2450.75,
-            "currency": "INR",
-            "intraday_change": -0.45,
-            "high_52w": 2700.0,
-            "low_52w": 2200.0,
-            "volume": 6500000,
-            "delivery_pct": 62.4,
-            "pe": 26.8,
-            "pb": 2.3,
-            "roe": 8.5,
-            "roce": 10.1,
-            "debt_equity": 0.32,
-            "dividend_yield": 0.38,
-            "book_value": 1120.0,
-            "face_value": 10.0,
-            "promoter_holding": 50.3,
-            "fii_holding": 21.8,
-            "dii_holding": 17.2,
-            "mutual_fund_holding": 8.5,
-            "public_holding": 10.7
-        },
-        "financials": [
-            {"year": 2025, "revenue": 960000.0, "ebitda": 165000.0, "pat": 74000.0, "eps": 109.4, "operating_cash_flow": 158000.0, "free_cash_flow": 35000.0, "total_debt": 298000.0, "shareholders_equity": 920000.0, "gross_margin": 25.8, "operating_margin": 15.8, "net_margin": 7.7, "roe": 8.5, "roce": 10.1, "current_ratio": 1.22, "quick_ratio": 0.89, "debt_equity": 0.32, "interest_coverage": 5.2, "inventory_days": 36, "working_capital": 12000.0, "dividends_paid": 6800.0},
-        ]
-    }
-}
+CACHE_TTL_PRICE = 120        # 2 minutes for live prices
+CACHE_TTL_FINANCIALS = 43200 # 12 hours for heavy financial statements
+CACHE_TTL_SEARCH = 300       # 5 minutes for autocomplete search results
 
 class YFinanceService:
     @staticmethod
@@ -213,8 +140,8 @@ class YFinanceService:
                 "intraday_change": round(change_pct, 2),
                 "high_52w": info.get("fiftyTwoWeekHigh", price * 1.2),
                 "low_52w": info.get("fiftyTwoWeekLow", price * 0.8),
-                "volume": info.get("regularMarketVolume", info.get("volume", 100000)),
-                "delivery_pct": round(float(np.random.uniform(45.0, 75.0)), 2),
+                "volume": info.get("regularMarketVolume", info.get("volume", 0)),
+                "delivery_pct": None,  # Not available from Yahoo Finance
                 "pe": round(info.get("trailingPE", info.get("forwardPE", 0.0)), 2),
                 "pb": round(info.get("priceToBook", 0.0), 2),
                 "roe": roe,
@@ -223,43 +150,43 @@ class YFinanceService:
                 "dividend_yield": div_yield,
                 "book_value": round(info.get("bookValue", 0.0), 2),
                 "face_value": info.get("faceValue", 10.0),
-                "promoter_holding": round(info.get("heldPercentInsiders", 0.45) * 100, 2),
-                "fii_holding": round(info.get("heldPercentInstitutions", 0.25) * 100, 2),
-                "dii_holding": round(float(np.random.uniform(10.0, 20.0)), 2),
-                "mutual_fund_holding": round(float(np.random.uniform(5.0, 12.0)), 2),
+                "promoter_holding": round(info.get("heldPercentInsiders", 0.0) * 100, 2),
+                "fii_holding": round(info.get("heldPercentInstitutions", 0.0) * 100, 2),
+                "dii_holding": None,           # Not available from Yahoo Finance
+                "mutual_fund_holding": None,   # Not available from Yahoo Finance
                 "public_holding": 0.0
             }
             
-            # Enforce public holding balance
+            # Compute public holding from available data
             insider = stock_profile["promoter_holding"]
             fii = stock_profile["fii_holding"]
-            dii = stock_profile["dii_holding"]
-            stock_profile["public_holding"] = max(0.0, round(100.0 - (insider + fii + dii), 2))
+            stock_profile["public_holding"] = max(0.0, round(100.0 - (insider + fii), 2))
             
-            # QoQ shareholding shifts calculation
+            # Shareholding detail — only include data Yahoo Finance actually provides
             stock_profile["shareholding_detail"] = {
                 "promoter": insider,
                 "fii": fii,
-                "dii": dii,
-                "mutual_funds": stock_profile["mutual_fund_holding"],
-                "insurance": round(float(np.random.uniform(2.0, 6.0)), 2),
+                "dii": None,           # NSE/BSE data not in Yahoo Finance
+                "mutual_funds": None,  # NSE/BSE data not in Yahoo Finance
+                "insurance": None,
                 "retail": stock_profile["public_holding"],
-                "foreign_investors": round(fii * 0.9, 2),
-                "promoter_change_qoq": "-0.01%" if np.random.rand() > 0.7 else "+0.00%",
-                "fii_change_qoq": f"{'+' if np.random.rand() > 0.45 else '-'}{round(float(np.random.uniform(0.05, 0.55)), 2)}%",
-                "dii_change_qoq": f"{'+' if np.random.rand() > 0.35 else '-'}{round(float(np.random.uniform(0.05, 0.45)), 2)}%",
-                "accumulation_signal": "Accumulation" if fii > 22.0 else "Distribution"
+                "foreign_investors": round(fii * 0.9, 2) if fii else None,
+                "promoter_change_qoq": None,   # Requires NSE shareholding filings
+                "fii_change_qoq": None,
+                "dii_change_qoq": None,
+                "accumulation_signal": "Accumulation" if (fii and fii > 22.0) else "Neutral"
             }
 
-            # ETF Specific metrics mapping
+            # ETF Specific metrics
             is_etf = info.get("quoteType") == "ETF" or "ETF" in stock_profile["name"].upper()
             if is_etf:
+                expense = info.get("feesExpensesDetail", {}).get("threeYearExpenseRatio") if info.get("feesExpensesDetail") else None
                 stock_profile["etf_details"] = {
                     "is_etf": True,
-                    "tracking_error": round(float(np.random.uniform(0.05, 0.22)), 2),
-                    "expense_ratio": round(info.get("feesExpensesDetail", {}).get("threeYearExpenseRatio", 0.22) or 0.22, 2),
-                    "liquidity": "High" if stock_profile["volume"] > 50000 else "Medium",
-                    "premium_discount": f"{'+' if np.random.rand() > 0.5 else '-'}{round(float(np.random.uniform(0.01, 0.15)), 2)}%"
+                    "tracking_error": None,    # Not available from Yahoo Finance free tier
+                    "expense_ratio": round(expense, 2) if expense else None,
+                    "liquidity": "High" if (stock_profile["volume"] or 0) > 50000 else "Medium",
+                    "premium_discount": None,  # Not available from Yahoo Finance free tier
                 }
             else:
                 stock_profile["etf_details"] = {"is_etf": False}
@@ -388,94 +315,34 @@ class YFinanceService:
             return res
             
         except Exception as err:
-            print(f"yfinance deep scrape failed for {ticker_upper}: {err}. Loading fallback + price overlay.")
-            import copy
-            
-            raw_mock = MOCK_DATABASE.get(ticker_upper)
-            if raw_mock:
-                mock = copy.deepcopy(raw_mock)
-            else:
-                # Dynamic mock generation
-                mock = {
-                    "info": {
-                        "ticker": ticker_upper,
-                        "name": f"{ticker_upper} Ltd.",
-                        "sector": "Industrials",
-                        "industry": "General Manufacturing",
-                        "description": f"Simulation profile for {ticker_upper}. Live data loading triggered.",
-                        "market_cap": 250000000.0,
-                        "price": 100.0,
-                        "currency": "INR" if ".NS" in ticker_upper or ".BO" in ticker_upper else "USD",
-                        "intraday_change": 0.0,
-                        "high_52w": 120.0,
-                        "low_52w": 80.0,
-                        "volume": 50000,
-                        "delivery_pct": 50.0,
-                        "pe": 15.0,
-                        "pb": 1.5,
-                        "roe": 12.0,
-                        "roce": 14.0,
-                        "debt_equity": 0.2,
-                        "dividend_yield": 1.0,
-                        "book_value": 60.0,
-                        "face_value": 10.0,
-                        "promoter_holding": 45.0,
-                        "fii_holding": 20.0,
-                        "dii_holding": 15.0,
-                        "mutual_fund_holding": 8.0,
-                        "public_holding": 20.0,
-                        "shareholding_detail": {
-                            "promoter": 45.0, "fii": 20.0, "dii": 15.0, "mutual_funds": 8.0, "insurance": 3.0, "retail": 20.0, "foreign_investors": 18.0,
-                            "promoter_change_qoq": "+0.00%", "fii_change_qoq": "+0.15%", "dii_change_qoq": "-0.05%", "accumulation_signal": "Accumulation"
-                        },
-                        "etf_details": {"is_etf": False}
-                    },
-                    "financials": [
-                        {"year": 2025, "revenue": 5000.0, "ebitda": 800.0, "pat": 500.0, "eps": 5.0, "operating_cash_flow": 600.0, "free_cash_flow": 400.0, "total_debt": 1000.0, "shareholders_equity": 4000.0, "gross_margin": 30.0, "operating_margin": 16.0, "net_margin": 10.0, "roe": 12.5, "roce": 14.5, "current_ratio": 1.5, "quick_ratio": 1.2, "debt_equity": 0.25, "interest_coverage": 6.0, "inventory_days": 20, "working_capital": 800.0, "dividends_paid": 100.0, "revenue_pct": 100.0, "ebitda_pct": 16.0, "pat_pct": 10.0, "equity_pct": 80.0, "debt_pct": 20.0, "growth_revenue": 12.0, "growth_ebitda": 15.0, "growth_pat": 10.0}
-                    ]
-                }
-                
-            # Perform live overlay check
-            live_price = None
-            change = 0.0
-            market_state = "Closed"
+            # Data truly unavailable — do NOT fall back to fake/mock data.
+            # Return a structured error so the frontend can show a proper state.
+            print(f"[YFinanceService] Data unavailable for {ticker_upper}: {err}")
             exchange = "NSE" if ".NS" in ticker_upper else "BSE" if ".BO" in ticker_upper else "NASDAQ"
-            
-            try:
-                fast = yt.fast_info
-                if fast and hasattr(fast, 'last_price') and fast.last_price is not None:
-                    live_price = float(fast.last_price)
-                if not live_price:
-                    hist = yt.history(period="1d")
-                    if not hist.empty:
-                        live_price = float(hist["Close"].iloc[-1])
-                        
-                if live_price:
-                    mock["info"]["price"] = live_price
-                    mock["info"]["market_cap"] = float(fast.market_cap) if fast and hasattr(fast, 'market_cap') and fast.market_cap is not None else mock["info"]["market_cap"]
-                    
-                set_cached(f"price_{ticker_upper}", {"price": mock["info"]["price"], "change": change})
-            except Exception as e:
-                print(f"Overlay fetch failed: {e}")
-                
-            res = {
-                "info": mock["info"],
-                "financials": mock["financials"],
+            currency = "INR" if (".NS" in ticker_upper or ".BO" in ticker_upper) else "USD"
+            return {
+                "error_state": True,
+                "error_message": (
+                    f"Live market data for '{ticker_upper}' could not be retrieved from Yahoo Finance. "
+                    "This may be due to an invalid ticker symbol, rate limiting, or a network issue. "
+                    "Please verify the symbol and try again."
+                ),
+                "info": None,
+                "financials": [],
                 "metadata": {
                     "last_updated": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-                    "data_source": "Yahoo Finance (Real-time Price Overlay)",
-                    "source": "Yahoo Finance (Real-time Price Overlay)",
-                    "reliability": "Medium",
-                    "reliability_rating": "Medium",
-                    "market_status": market_state,
+                    "data_source": "Yahoo Finance",
+                    "source": "Yahoo Finance",
+                    "reliability": "Unavailable",
+                    "reliability_rating": "Unavailable",
+                    "market_status": "Unknown",
                     "exchange": exchange,
-                    "currency": mock["info"]["currency"],
+                    "currency": currency,
                     "timezone": "Asia/Kolkata" if (".NS" in ticker_upper or ".BO" in ticker_upper) else "America/New_York",
-                    "data_quality": "80/100",
-                    "data_quality_score": "80/100"
+                    "data_quality": "0/100",
+                    "data_quality_score": "0/100"
                 }
             }
-            return res
 
     @staticmethod
     def get_stock_prices_history(ticker: str) -> List[float]:
@@ -495,12 +362,7 @@ class YFinanceService:
                 prices = hist["Close"].tolist()
                 set_cached(cache_key, prices)
                 return prices
-        except Exception:
-            pass
-            
-        # Mock history
-        np.random.seed(42)
-        base = 2450.0 if "RELIANCE" in ticker_upper else 210.0 if "AAPL" in ticker_upper else 100.0
-        prices = (base * (1.0 + np.random.normal(0.0005, 0.015, 250).cumsum())).tolist()
-        set_cached(cache_key, prices)
-        return prices
+        except Exception as e:
+            print(f"[YFinanceService] Price history unavailable for {ticker_upper}: {e}")
+            # Return empty list — no fake/simulated history fallback
+            return []

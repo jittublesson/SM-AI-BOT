@@ -13,6 +13,8 @@ RSS_FEEDS = [
     "https://economictimes.indiatimes.com/markets/stocks/rssfeeds/2146842.cms",
     "https://www.moneycontrol.com/rss/latestnews.xml",
     "https://feeds.feedburner.com/ndtvprofit-latest",
+    "https://www.thehindubusinessline.com/markets/?service=rss",
+    "https://www.businesstoday.in/rssfeeds/markets.xml",
 ]
 
 
@@ -164,9 +166,9 @@ class NewsService:
             except Exception as e:
                 print(f"yfinance news fetch failed: {e}")
 
-        # --- Fallback: curated static headlines (always current-feeling) ---
-        if not news_list:
-            news_list = _get_fallback_news()
+        # When all real sources fail — return empty list with error flag
+        # Do NOT inject fake/fabricated news headlines
+        print("[NewsService] All feeds and yfinance news unavailable. Returning empty news state.")
 
         # Compute Fear & Greed
         bullish = [n for n in news_list if n["sentiment"] == "Bullish"]
@@ -213,6 +215,10 @@ def _source_name(url: str) -> str:
         return "Moneycontrol"
     elif "ndtv" in url:
         return "NDTV Profit"
+    elif "thehindubusinessline" in url:
+        return "BusinessLine"
+    elif "businesstoday" in url:
+        return "Business Today"
     return "Financial News"
 
 
@@ -223,33 +229,3 @@ def _get_evidence(sentiment: str) -> str:
         return "Retail distribution and hedging via options recorded in recent trade data."
     return "Sideways consolidation with balanced buyer/seller trade volume."
 
-
-def _get_fallback_news() -> List[Dict]:
-    """Returns fresh-feeling curated static news when all feeds fail."""
-    today = datetime.now().strftime("%d %b %Y")
-    return [
-        {
-            "id": 0, "title": "Nifty 50 holds key 24,000 support amid global cues",
-            "content": "Indian benchmark indices opened steady as global markets showed mixed signals.",
-            "source": "Economic Times", "time": "2h ago", "link": "#",
-            "publisher": "Economic Times", "sentiment": "Neutral",
-            "category": "Market Overview", "impact": "Market Wide",
-            "accumulation_distribution_evidence": "Balanced trade flow observed."
-        },
-        {
-            "id": 1, "title": "FII inflows strengthen rupee, IT sector rallies",
-            "content": "Foreign institutional investors continued net buying in large-cap IT stocks.",
-            "source": "Moneycontrol", "time": "3h ago", "link": "#",
-            "publisher": "Moneycontrol", "sentiment": "Bullish",
-            "category": "FII Activity", "impact": "Market Wide",
-            "accumulation_distribution_evidence": "Strong institutional block accumulation in IT."
-        },
-        {
-            "id": 2, "title": "RBI maintains repo rate, signals growth focus",
-            "content": "Reserve Bank of India kept rates unchanged, prioritizing economic growth trajectory.",
-            "source": "NDTV Profit", "time": "5h ago", "link": "#",
-            "publisher": "NDTV Profit", "sentiment": "Bullish",
-            "category": "Monetary Policy", "impact": "Market Wide",
-            "accumulation_distribution_evidence": "Banking sector showing accumulation signals."
-        },
-    ]

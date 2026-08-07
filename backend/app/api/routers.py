@@ -22,58 +22,9 @@ from app.services.score_service import ScoreService
 from app.services.chat_service import ChatService
 from app.services.mutual_fund_service import MutualFundService
 from app.services.logger_service import AuditLogger
-from app.services.agent_coordinator import AgentCoordinator
 from app.services.rag_service import RAGPipeline
 
 router = APIRouter()
-
-# --- Expanded global ticker search index ---
-TICKER_INDEX = [
-    # US Technology
-    {"ticker": "AAPL", "name": "Apple Inc.", "sector": "Technology", "exchange": "NASDAQ"},
-    {"ticker": "MSFT", "name": "Microsoft Corporation", "sector": "Technology", "exchange": "NASDAQ"},
-    {"ticker": "GOOGL", "name": "Alphabet Inc.", "sector": "Technology", "exchange": "NASDAQ"},
-    {"ticker": "AMZN", "name": "Amazon.com Inc.", "sector": "Consumer Discretionary", "exchange": "NASDAQ"},
-    {"ticker": "META", "name": "Meta Platforms Inc.", "sector": "Technology", "exchange": "NASDAQ"},
-    {"ticker": "NVDA", "name": "NVIDIA Corporation", "sector": "Semiconductors", "exchange": "NASDAQ"},
-    {"ticker": "TSLA", "name": "Tesla Inc.", "sector": "Automotive", "exchange": "NASDAQ"},
-    {"ticker": "NFLX", "name": "Netflix Inc.", "sector": "Communication Services", "exchange": "NASDAQ"},
-    {"ticker": "AMD", "name": "Advanced Micro Devices", "sector": "Semiconductors", "exchange": "NASDAQ"},
-    {"ticker": "INTC", "name": "Intel Corporation", "sector": "Semiconductors", "exchange": "NASDAQ"},
-    # US Financials & Healthcare
-    {"ticker": "JPM", "name": "JPMorgan Chase & Co.", "sector": "Financials", "exchange": "NYSE"},
-    {"ticker": "GS", "name": "Goldman Sachs Group", "sector": "Financials", "exchange": "NYSE"},
-    {"ticker": "BAC", "name": "Bank of America Corp.", "sector": "Financials", "exchange": "NYSE"},
-    {"ticker": "JNJ", "name": "Johnson & Johnson", "sector": "Healthcare", "exchange": "NYSE"},
-    {"ticker": "PFE", "name": "Pfizer Inc.", "sector": "Healthcare", "exchange": "NYSE"},
-    {"ticker": "UNH", "name": "UnitedHealth Group", "sector": "Healthcare", "exchange": "NYSE"},
-    # US Industrials & Energy
-    {"ticker": "XOM", "name": "ExxonMobil Corporation", "sector": "Energy", "exchange": "NYSE"},
-    {"ticker": "CVX", "name": "Chevron Corporation", "sector": "Energy", "exchange": "NYSE"},
-    {"ticker": "BA", "name": "Boeing Company", "sector": "Industrials", "exchange": "NYSE"},
-    {"ticker": "CAT", "name": "Caterpillar Inc.", "sector": "Industrials", "exchange": "NYSE"},
-    # Indian Stocks (NSE)
-    {"ticker": "RELIANCE.NS", "name": "Reliance Industries Ltd.", "sector": "Energy / Conglomerate", "exchange": "NSE"},
-    {"ticker": "INFY", "name": "Infosys Ltd.", "sector": "Technology", "exchange": "NSE"},
-    {"ticker": "TCS.NS", "name": "Tata Consultancy Services", "sector": "Technology", "exchange": "NSE"},
-    {"ticker": "HDFCBANK.NS", "name": "HDFC Bank Ltd.", "sector": "Financials", "exchange": "NSE"},
-    {"ticker": "ICICIBANK.NS", "name": "ICICI Bank Ltd.", "sector": "Financials", "exchange": "NSE"},
-    {"ticker": "WIPRO.NS", "name": "Wipro Ltd.", "sector": "Technology", "exchange": "NSE"},
-    {"ticker": "HCLTECH.NS", "name": "HCL Technologies", "sector": "Technology", "exchange": "NSE"},
-    {"ticker": "TATAMOTORS.NS", "name": "Tata Motors Ltd.", "sector": "Automotive", "exchange": "NSE"},
-    {"ticker": "TATASTEEL.NS", "name": "Tata Steel Ltd.", "sector": "Materials", "exchange": "NSE"},
-    {"ticker": "SUNPHARMA.NS", "name": "Sun Pharmaceutical", "sector": "Healthcare", "exchange": "NSE"},
-    {"ticker": "BAJFINANCE.NS", "name": "Bajaj Finance Ltd.", "sector": "Financials", "exchange": "NSE"},
-    {"ticker": "MARUTI.NS", "name": "Maruti Suzuki India", "sector": "Automotive", "exchange": "NSE"},
-    {"ticker": "ADANIPORTS.NS", "name": "Adani Ports & SEZ", "sector": "Industrials", "exchange": "NSE"},
-    {"ticker": "LTIM.NS", "name": "LTIMindtree Ltd.", "sector": "Technology", "exchange": "NSE"},
-    # Global
-    {"ticker": "BABA", "name": "Alibaba Group Holding", "sector": "Consumer Discretionary", "exchange": "NYSE"},
-    {"ticker": "TSM", "name": "Taiwan Semiconductor Mfg.", "sector": "Semiconductors", "exchange": "NYSE"},
-    {"ticker": "ASML", "name": "ASML Holding N.V.", "sector": "Semiconductors", "exchange": "NASDAQ"},
-    {"ticker": "NVO", "name": "Novo Nordisk A/S", "sector": "Healthcare", "exchange": "NYSE"},
-    {"ticker": "SAP", "name": "SAP SE", "sector": "Technology", "exchange": "NYSE"},
-]
 
 # --- 1. Education Academy Routers ---
 @router.get("/education/lessons", response_model=List[schemas.Lesson])
@@ -108,14 +59,11 @@ def complete_lesson(req: schemas.ProgressCompleteRequest, db: Session = Depends(
 # --- 2. Fundamental Analyst & Scoring Routers ---
 @router.get("/analyst/search")
 def search_stocks(q: str = Query(..., min_length=1)):
-    """Full-text search across thousands of listed companies via yfinance search API."""
+    """Full-text search across thousands of listed companies via Yahoo Finance search API.
+    Supports NSE, BSE, NYSE, NASDAQ, LSE, and HKEX without any predefined list.
+    """
     matches = YFinanceService.search_companies(q)
-    if not matches:
-        query = q.lower().strip()
-        matches = [
-            t for t in TICKER_INDEX
-            if query in t["ticker"].lower() or query in t["name"].lower() or query in t["sector"].lower()
-        ]
+    # If Yahoo Finance returns nothing (network issue), return empty — no hardcoded fallback
     return matches[:15]  # Cap at 15 results for UI performance
 
 
@@ -290,11 +238,12 @@ def add_to_watchlist(req: schemas.WatchlistCreate, db: Session = Depends(get_db)
     if existing:
         raise HTTPException(status_code=409, detail=f"{req.ticker.upper()} is already in your watchlist.")
     
-    # Auto-populate name and sector from ticker index if not provided
-    ticker_meta = next((t for t in TICKER_INDEX if t["ticker"] == req.ticker.upper()), None)
-    item_name = req.name or (ticker_meta["name"] if ticker_meta else req.ticker.upper())
-    item_sector = req.sector or (ticker_meta["sector"] if ticker_meta else "Equity")
+    # Use the provided name or the ticker symbol directly
+    # Frontend uses Yahoo Finance search to resolve name before calling this endpoint
+    item_name = req.name or req.ticker.upper()
+    item_sector = req.sector or "Equity"
     
+
     db_item = models.WatchlistItem(
         ticker=req.ticker.upper(),
         name=item_name,
@@ -378,9 +327,9 @@ def get_journal_entry(id: int, db: Session = Depends(get_db)):
 def create_journal_entry(req: schemas.JournalCreate, db: Session = Depends(get_db)):
     """Create a new investment journal entry."""
     now = datetime.utcnow().strftime("%Y-%m-%d")
-    # Auto-populate company name from ticker index if not provided
-    ticker_meta = next((t for t in TICKER_INDEX if t["ticker"] == req.ticker.upper()), None)
-    company_name = req.company_name or (ticker_meta["name"] if ticker_meta else req.ticker.upper())
+    # Use the ticker itself as company name if not provided
+    # (Yahoo Finance search can be called from the frontend before creating the entry)
+    company_name = req.company_name or req.ticker.upper()
     entry = models.ResearchJournalEntry(
         ticker=req.ticker.upper(),
         company_name=company_name,
@@ -443,91 +392,89 @@ def get_market_intelligence():
     from datetime import datetime, timedelta
     intel = MacroService.get_macro_intel()
     news = NewsService.get_market_sentiment()
-    
-    # Map dynamic values to expected format
+
+    fg_score = news.get("fear_greed_score", 50.0)
+    fg_label = news.get("fear_greed_label", "Neutral")
+
+    # Sector performance — not available from free Yahoo Finance tier
+    # Returns empty list rather than hardcoded/fake values
+    sector_performance = [
+        {
+            "sector": s["sector"],
+            "phase": s["phase"],
+            "outlook": s["outlook"],
+            "data_available": False,
+            "note": "Real-time sector performance requires NSE sector indices or a paid data provider."
+        }
+        for s in intel.get("sector_rotation", [])
+    ]
+
+    # Fixed income — live from macro_service (Yahoo Finance bond tickers)
+    fixed_income = intel.get("fixed_income", [])
+
+    # Commodities — live from macro_service
+    commodities_raw = intel.get("commodities", [])
+    commodities_formatted = [
+        {
+            "name": c["name"],
+            "value": c["price"],
+            "change": c["change"],
+            "trend": "down" if str(c.get("change", "")).startswith("-") else "up",
+            "data_available": c.get("data_available", False)
+        }
+        for c in commodities_raw
+    ]
+
+    # Indices — combine Indian + global
     indian = intel.get("indian_indices", [])
-    glob = intel.get("global_markets", [])
-    
+    glob   = intel.get("global_markets", [])
     mapped_indices = []
     for idx in indian + glob:
-        name = idx.get("name", "").upper()
-        val = idx.get("price", "0.0")
         chg = idx.get("change", "0.0%")
-        trend = "down" if "-" in chg else "up"
+        trend = "down" if str(chg).startswith("-") else "up"
         mapped_indices.append({
-            "name": name,
-            "value": val,
+            "name": idx.get("name", ""),
+            "value": idx.get("price", "N/A"),
             "change": chg,
-            "trend": trend
+            "trend": trend,
+            "data_available": idx.get("data_available", False),
         })
-        
-    fii_dii = intel.get("fii_dii_activity", {})
-    fg_score = news.get("fear_greed_score", 5.0)
-    fg_label = news.get("fear_greed_label", "Neutral")
-    
-    today = datetime.now()
-    def get_date_str(days_offset):
-        return (today + timedelta(days=days_offset)).strftime("%Y-%m-%d")
+
+    # Market breadth — not available on free tier (NSE requires session auth)
+    market_breadth = {
+        "data_available": False,
+        "note": "Real-time market breadth (advances/declines) requires NSE India API access.",
+        "source": "NSE India"
+    }
 
     return {
         "global_indices": mapped_indices,
-        "sector_performance": [
-            {"sector": "Information Technology", "change": "+1.82%", "trend": "up",   "signal": "Accumulate"},
-            {"sector": "Financials",             "change": "+0.61%", "trend": "up",   "signal": "Neutral"},
-            {"sector": "Consumer Discretionary", "change": "-0.28%", "trend": "down", "signal": "Neutral"},
-            {"sector": "Energy",                 "change": "-0.82%", "trend": "down", "signal": "Underweight"},
-            {"sector": "Healthcare",             "change": "+0.94%", "trend": "up",   "signal": "Overweight"},
-            {"sector": "Utilities",              "change": "+0.23%", "trend": "up",   "signal": "Neutral"},
-            {"sector": "Materials",              "change": "-0.41%", "trend": "down", "signal": "Neutral"},
-            {"sector": "Industrials",            "change": "+0.55%", "trend": "up",   "signal": "Overweight"},
-        ],
-        "commodities": [
-            {"name": "Brent Crude ($/bbl)", "value": "$78.45",   "change": "+0.82%", "trend": "up"},
-            {"name": "Gold ($/oz)",          "value": "$2,350.20","change": "+0.14%", "trend": "up"},
-            {"name": "Silver ($/oz)",        "value": "$28.92",   "change": "+0.31%", "trend": "up"},
-            {"name": "Natural Gas",          "value": "$2.84",    "change": "-1.20%", "trend": "down"},
-        ],
-        "fixed_income": [
-            {"name": "US 10Y Yield",    "value": "4.12%", "change": "-2bps",  "trend": "down"},
-            {"name": "India 10Y GSec",  "value": "6.94%", "change": "-1bps",  "trend": "down"},
-            {"name": "DXY (Dollar Index)","value": "104.25","change": "+0.21%","trend": "up"},
-        ],
-        "fii_dii_flows": {
-            "fii_net_today_cr": fii_dii.get("fii_net_buy_sell", "+1,200 Cr"),
-            "dii_net_today_cr": fii_dii.get("dii_net_buy_sell", "+800 Cr"),
-            "fii_net_month_cr": -8240.0,
-            "dii_net_month_cr": +12450.0,
-            "fii_ytd_cr": -24800.0,
-            "dii_ytd_cr": +38200.0,
-            "summary": fii_dii.get("combined_flow", "Net Flow Inflow")
-        },
-        "market_breadth": {
-            "advances": 1428,
-            "declines": 652,
-            "unchanged": 186,
-            "new_highs_52w": 84,
-            "new_lows_52w": 23,
-            "advance_decline_ratio": 2.19,
-            "breadth_signal": "Bullish — Broad participation across Nifty stocks"
-        },
-        "ipo_calendar": intel.get("ipo_calendar", []),
-        "economic_calendar": [
-            {"event": "US CPI Inflation Report",    "date": get_date_str(1), "forecast": "2.4%",  "prior": "2.6%",  "impact": "High"},
-            {"event": "India IIP Output Data",      "date": get_date_str(3), "forecast": "4.1%",  "prior": "3.8%",  "impact": "Medium"},
-            {"event": "Federal Reserve FOMC Meet",  "date": get_date_str(6), "forecast": "5.25%", "prior": "5.25%", "impact": "Critical"},
-            {"event": "India RBI Policy Review",    "date": get_date_str(10), "forecast": "6.50%", "prior": "6.50%", "impact": "High"},
-        ],
+        "sector_performance": sector_performance,
+        "commodities": commodities_formatted,
+        "fixed_income": fixed_income,
+        "fii_dii_flows": intel.get("fii_dii_flows", {"data_available": False}),
+        "market_breadth": market_breadth,
+        "ipo_calendar": [],
+        "economic_calendar": [],
+        "calendar_note": "Corporate and economic calendar data requires a paid data provider or NSE/BSE filings integration.",
         "ai_market_summary": (
-            f"Equities trade in a {fg_label.lower()} phase according to the sentiment score of {fg_score}. "
-            "Domestic institutional flows absorb global sell-offs. Sector trends show technology and industrials leading volume gains."
+            f"Markets are in a {fg_label.lower()} sentiment phase (score: {fg_score}). "
+            "Domestic institutional flows and global macro signals are driving sectoral rotation. "
+            "All price data sourced live from Yahoo Finance."
         ),
         "volatility": {
-            "vix": 14.82,
-            "vix_label": "Low Volatility (Risk-On)",
-            "india_vix": 12.45,
-            "fear_greed_score": int(fg_score * 10),
-            "fear_greed_label": fg_label
-        }
+            "vix": intel.get("indian_indices", [{}])[-1].get("price", "N/A") if intel.get("indian_indices") else "N/A",
+            "vix_label": "India VIX (Live)",
+            "fear_greed_score": int(fg_score * 10) if isinstance(fg_score, float) else fg_score,
+            "fear_greed_label": fg_label,
+            "data_source": "Yahoo Finance + News Sentiment"
+        },
+        "top_gainers": intel.get("top_gainers", []),
+        "top_losers": intel.get("top_losers", []),
+        "movers_data_available": intel.get("movers_data_available", False),
+        "movers_source": intel.get("movers_source", "Yahoo Finance"),
+        "data_source": intel.get("data_source", "Yahoo Finance"),
+        "last_updated": intel.get("last_updated", datetime.now().strftime("%Y-%m-%d %H:%M:%S")),
     }
 
 
@@ -623,15 +570,15 @@ def screen_funds(
     amc: str = "All",
     risk: str = "All",
     max_expense: float = 2.0,
-    min_aum: float = 0.0
+    min_nav: float = 0.0
 ):
-    """Query mutual funds using advanced parameter filters."""
+    """Filter mutual funds from the featured list using parameter-based screening."""
     return MutualFundService.screen_funds(
         category=category,
         amc=amc,
         risk=risk,
         max_expense=max_expense,
-        min_aum=min_aum
+        min_nav=min_nav
     )
 
 @router.get("/funds/compare")
@@ -764,54 +711,65 @@ ALERTS_DB: List[Dict[str, Any]] = []
 @router.get("/screener/query")
 def query_screener(rules: str = Query(...)):
     """
-    Parses natural language screener queries (e.g. 'Large-cap IT stocks with low debt')
-    and translates them into structured filter sets.
+    Parses natural language screener queries and maps them to structured filters.
+    Fetches live data for matched stocks from Yahoo Finance.
     """
     start_time = time.time()
-    
-    universe = [
-        {"ticker": "RELIANCE.NS", "name": "Reliance Industries Ltd.", "roe": 8.5, "debt_equity": 0.32, "market_cap": 20000000, "pe": 26.8},
-        {"ticker": "TCS.NS", "name": "Tata Consultancy Services", "roe": 39.2, "debt_equity": 0.05, "market_cap": 14000000, "pe": 29.5},
-        {"ticker": "HDFCBANK.NS", "name": "HDFC Bank Ltd.", "roe": 15.8, "debt_equity": 0.85, "market_cap": 12000000, "pe": 19.5},
-        {"ticker": "INFY", "name": "Infosys Ltd.", "roe": 31.5, "debt_equity": 0.12, "market_cap": 6500000, "pe": 25.2},
-        {"ticker": "WIPRO.NS", "name": "Wipro Ltd.", "roe": 16.5, "debt_equity": 0.15, "market_cap": 2500000, "pe": 21.0},
-        {"ticker": "TATAMOTORS.NS", "name": "Tata Motors Ltd.", "roe": 22.4, "debt_equity": 1.25, "market_cap": 3500000, "pe": 18.2},
-        {"ticker": "SUNPHARMA.NS", "name": "Sun Pharmaceutical", "roe": 14.8, "debt_equity": 0.08, "market_cap": 2800000, "pe": 32.5}
-    ]
-    
-    results = []
-    clean_rules = rules.lower()
-    
-    # Translate Natural Language patterns to filters
-    filter_roe = 0.0
-    filter_debt = 99.0
-    filter_cap = 0.0 # Min market cap
-    
-    if "roe > 18" in clean_rules or "roe above 20" in clean_rules or "roe > 20" in clean_rules:
-        filter_roe = 18.0
-    if "low debt" in clean_rules or "debt < 0.5" in clean_rules or "debt less than 0.5" in clean_rules:
-        filter_debt = 0.5
-    if "large-cap" in clean_rules or "market cap > 5000" in clean_rules:
-        filter_cap = 5000000.0
 
-    # Log AI reasoning log
+    # Dynamic universe from Nifty 50 basket (live data, no hardcoded values)
+    from app.services.macro_service import NIFTY50_BASKET, TICKER_NAMES
+
+    clean_rules = rules.lower()
+
+    # Translate NL patterns to numeric filters
+    filter_roe    = 18.0 if any(k in clean_rules for k in ["roe > 18", "roe above 18", "roe > 20", "high roe"]) else 0.0
+    filter_debt   = 0.5  if any(k in clean_rules for k in ["low debt", "debt < 0.5", "debt less"]) else 99.0
+    filter_pe_max = 25.0 if any(k in clean_rules for k in ["low pe", "pe < 25", "value"]) else 999.0
+    filter_cap    = 5000000.0 if any(k in clean_rules for k in ["large-cap", "large cap", "market cap > 5000"]) else 0.0
+
     AuditLogger.log_ai(
         "Screener Semantic Translation Agent",
         f"Translate NL query: '{rules}'",
         [
-            f"Detected ROE threshold check: {filter_roe}",
-            f"Detected Debt threshold check: {filter_debt}",
-            f"Detected Market Cap threshold check: {filter_cap}"
+            f"ROE threshold: {filter_roe}",
+            f"Debt threshold: {filter_debt}",
+            f"PE max: {filter_pe_max}",
+            f"MarketCap min: {filter_cap}"
         ]
     )
 
-    for c in universe:
-        if c["roe"] >= filter_roe and c["debt_equity"] <= filter_debt and c["market_cap"] >= filter_cap:
-            results.append(c)
+    results = []
+    # Fetch live data for each ticker in basket and apply filters
+    for ticker in NIFTY50_BASKET[:20]:  # Limit to 20 for performance
+        try:
+            data = YFinanceService.get_stock_data(ticker)
+            if data.get("error_state"):
+                continue
+            info = data.get("info", {})
+            if not info:
+                continue
+            roe = info.get("roe", 0) or 0
+            de  = info.get("debt_equity", 99) or 99
+            pe  = info.get("pe", 999) or 999
+            cap = info.get("market_cap", 0) or 0
+
+            if roe >= filter_roe and de <= filter_debt and pe <= filter_pe_max and cap >= filter_cap:
+                results.append({
+                    "ticker": ticker,
+                    "name": TICKER_NAMES.get(ticker, ticker.replace(".NS", "")),
+                    "price": info.get("price"),
+                    "roe": roe,
+                    "debt_equity": de,
+                    "pe": pe,
+                    "market_cap": cap,
+                    "sector": info.get("sector", "N/A"),
+                })
+        except Exception:
+            continue
 
     duration = int((time.time() - start_time) * 1000)
     AuditLogger.log_api("/screener/query", "GET", duration, {"rules": rules})
-    
+
     return results
 
 @router.get("/alerts")
