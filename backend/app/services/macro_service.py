@@ -9,7 +9,7 @@ class MacroService:
     @staticmethod
     def get_index_price(ticker: str, default_price: float, default_change: str) -> Dict[str, str]:
         """
-        Fetches the current price and change percent for a major market index.
+        Fetches the current price and change percent for a major market index or commodity.
         Caches results for 2 minutes to respect API rate limits.
         """
         cache_key = f"index_val_{ticker}"
@@ -19,7 +19,6 @@ class MacroService:
             
         try:
             yt = yf.Ticker(ticker)
-            # Use history to get reliable price and close change
             hist = yt.history(period="2d")
             if not hist.empty and len(hist) >= 1:
                 price = float(hist["Close"].iloc[-1])
@@ -34,14 +33,14 @@ class MacroService:
                 change_pct = float(default_change.replace("%", "").replace("+", ""))
                 
             res = {
-                "price": f"{price:,.2f}",
+                "price": f"{price:,.2f}" if price > 100 else f"{price:.2f}",
                 "change": f"{'+' if change_pct >= 0 else ''}{change_pct:.2f}%"
             }
             set_cached(cache_key, res)
             return res
         except Exception as e:
             print(f"Error fetching index {ticker}: {e}")
-            return {"price": f"{default_price:,.2f}", "change": default_change}
+            return {"price": f"{default_price:,.2f}" if default_price > 100 else f"{default_price:.2f}", "change": default_change}
 
     @staticmethod
     def get_macro_intel() -> Dict[str, Any]:
@@ -49,23 +48,42 @@ class MacroService:
         Retrieves global macro indicators, interest rate metrics, sector rotation cycles,
         and market-wide calendars, dynamically pulling index metrics from Yahoo Finance.
         """
-        # Fetch key market indices dynamically
+        # Indian Indices
         nifty = MacroService.get_index_price("^NSEI", 24320.80, "+0.52%")
         sensex = MacroService.get_index_price("^BSESN", 79800.50, "+0.48%")
         bank_nifty = MacroService.get_index_price("^NSEBANK", 52200.30, "+0.35%")
         india_vix = MacroService.get_index_price("INDIAVIX.NS", 14.20, "-2.10%")
         
+        # Commodities & Forex
+        gold = MacroService.get_index_price("GC=F", 2350.20, "+0.14%")
+        silver = MacroService.get_index_price("SI=F", 28.92, "+0.31%")
+        crude = MacroService.get_index_price("CL=F", 78.45, "+0.82%")
+        bitcoin = MacroService.get_index_price("BTC-USD", 65400.00, "+1.45%")
+        usdinr = MacroService.get_index_price("INR=X", 83.50, "-0.05%")
+        
+        # Global Markets
         sp500 = MacroService.get_index_price("^GSPC", 5450.25, "+0.45%")
-        nasdaq = MacroService.get_index_price("^NDX", 19890.40, "+0.68%")
+        nasdaq = MacroService.get_index_price("^IXIC", 17890.40, "+0.72%")
+        dow = MacroService.get_index_price("^DJI", 38901.34, "-0.12%")
         nikkei = MacroService.get_index_price("^N225", 39120.50, "-0.22%")
+        hang_seng = MacroService.get_index_price("^HSI", 17500.20, "+0.85%")
 
-        # Economic Indicators
-        indicators = [
-            {"name": "US CPI Inflation (YoY)", "value": "2.4%", "status": "Cooling", "impact": "Positive"},
+        # Economic Dashboard Metrics
+        economic_indicators = [
             {"name": "RBI Repo Rate", "value": "6.50%", "status": "Steady", "impact": "Neutral"},
-            {"name": "Fed Funds Rate", "value": "5.25%", "status": "Trimming Cycle", "impact": "Positive"},
-            {"name": "US 10Y Bond Yield", "value": "4.12%", "status": "Easing", "impact": "Positive"},
-            {"name": "Brent Crude (per Barrel)", "value": "$78.50", "status": "Range Bound", "impact": "Neutral"},
+            {"name": "India Inflation (YoY CPI)", "value": "4.80%", "status": "Moderating", "impact": "Positive"},
+            {"name": "India GDP Growth Rate", "value": "7.20%", "status": "Robust Expansion", "impact": "Positive"},
+            {"name": "India PMI Manufacturing", "value": "58.4", "status": "Expanding", "impact": "Positive"},
+            {"name": "India IIP Growth (YoY)", "value": "4.20%", "status": "Steady", "impact": "Neutral"},
+            {"name": "Current Account Deficit (CAD)", "value": "-1.20% of GDP", "status": "Manageable", "impact": "Positive"},
+            {"name": "Fiscal Deficit target", "value": "4.90% of GDP", "status": "On Track", "impact": "Positive"},
+            {"name": "India Forex Reserves", "value": "$652B", "status": "All-Time High", "impact": "Positive"},
+            {"name": "India Unemployment Rate", "value": "6.8%", "status": "Stable", "impact": "Neutral"},
+            {"name": "US Inflation CPI (YoY)", "value": "2.4%", "status": "Cooling", "impact": "Positive"},
+            {"name": "Federal Reserve Funds Rate", "value": "5.25%", "status": "Trimming Cycle", "impact": "Positive"},
+            {"name": "US Non-Farm Payrolls", "value": "+185k", "status": "Healthy hiring", "impact": "Positive"},
+            {"name": "India 10Y G-Sec Yield", "value": "6.94%", "status": "Easing", "impact": "Positive"},
+            {"name": "US 10Y Treasury Yield", "value": "4.12%", "status": "Consolidating", "impact": "Neutral"}
         ]
 
         # Sector Rotation Phase Map
@@ -77,10 +95,8 @@ class MacroService:
             {"sector": "Utilities & Staples", "phase": "Recession / Bottom", "outlook": "Defensive holdovers, underperforming high-growth segments."}
         ]
 
-        # Generate Dynamic Calendars relative to today's date
+        # Dynamic Calendars relative to today's date
         today = datetime.now()
-        
-        # Helper to format dates
         def get_date_str(days_offset):
             return (today + timedelta(days=days_offset)).strftime("%Y-%m-%d")
 
@@ -107,8 +123,7 @@ class MacroService:
             {"company": "Wipro Ltd.", "action": "₹12,000 Cr Share Buyback", "record_date": get_date_str(8)}
         ]
 
-        # Fetch realistic FII/DII Net Flows
-        # FII/DII Net Activity Logs (in Crores)
+        # Dynamic FII / DII Flow simulations
         np.random.seed(int(today.strftime("%d%m%y")))
         fii_val = int(np.random.uniform(500, 2500))
         dii_val = int(np.random.uniform(200, 1500))
@@ -124,7 +139,10 @@ class MacroService:
         global_markets = [
             {"name": "S&P 500", "price": sp500["price"], "change": sp500["change"]},
             {"name": "Nasdaq 100", "price": nasdaq["price"], "change": nasdaq["change"]},
-            {"name": "Nikkei 225", "price": nikkei["price"], "change": nikkei["change"]}
+            {"name": "Dow Jones", "price": dow["price"], "change": dow["change"]},
+            {"name": "Nikkei 225", "price": nikkei["price"], "change": nikkei["change"]},
+            {"name": "Hang Seng", "price": hang_seng["price"], "change": hang_seng["change"]},
+            {"name": "USD / INR", "price": usdinr["price"], "change": usdinr["change"]}
         ]
 
         # Indian Indices Snapshot
@@ -135,8 +153,16 @@ class MacroService:
             {"name": "India VIX", "price": india_vix["price"], "change": india_vix["change"]}
         ]
 
+        # Commodities & Bitcoin list
+        commodities = [
+            {"name": "Gold (oz)", "price": gold["price"], "change": gold["change"]},
+            {"name": "Silver (oz)", "price": silver["price"], "change": silver["change"]},
+            {"name": "Crude Oil", "price": crude["price"], "change": crude["change"]},
+            {"name": "Bitcoin (USD)", "price": bitcoin["price"], "change": bitcoin["change"]}
+        ]
+
         return {
-            "indicators": indicators,
+            "indicators": economic_indicators,
             "sector_rotation": sector_rotation,
             "earnings_calendar": earnings_calendar,
             "dividend_calendar": dividend_calendar,
@@ -144,5 +170,6 @@ class MacroService:
             "corporate_actions": corporate_actions,
             "fii_dii_activity": fii_dii_activity,
             "global_markets": global_markets,
-            "indian_indices": indian_indices
+            "indian_indices": indian_indices,
+            "commodities": commodities
         }

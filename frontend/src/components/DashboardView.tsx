@@ -23,6 +23,52 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onSelectTicker, ta
   // Local storage notes state
   const [pinnedNotes, setPinnedNotes] = useState<Array<{ ticker: string; text: string; date: string }>>([]);
 
+  // Alerts database state
+  const [alerts, setAlerts] = useState<any[]>([]);
+  const [alertTicker, setAlertTicker] = useState("");
+  const [alertType, setAlertType] = useState("Price");
+  const [alertValue, setAlertValue] = useState(100);
+
+  const fetchAlerts = async () => {
+    try {
+      const res = await fetch("/api/v1/alerts");
+      if (res.ok) {
+        setAlerts(await res.json());
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const handleCreateAlert = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!alertTicker.trim()) return;
+    try {
+      const res = await fetch("/api/v1/alerts", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ticker: alertTicker, type: alertType, value: alertValue })
+      });
+      if (res.ok) {
+        setAlertTicker("");
+        fetchAlerts();
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const handleDeleteAlert = async (id: number) => {
+    try {
+      const res = await fetch(`/api/v1/alerts/${id}`, { method: "DELETE" });
+      if (res.ok) {
+        fetchAlerts();
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
   const fetchDashboardData = async () => {
     setLoading(true);
     try {
@@ -44,15 +90,17 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onSelectTicker, ta
         setPinnedNotes(JSON.parse(savedNotes));
       }
 
+      fetchAlerts();
+
       // Compute simple portfolio stats from holdings if available
       const holdingsRes = await fetch("/api/v1/portfolio/holdings");
       if (holdingsRes.ok) {
-        const holdings = await holdingsRes.ok ? await holdingsRes.json() : [];
+        const holdings = await holdingsRes.json();
         if (holdings && holdings.length > 0) {
           let sumValue = 0;
           let sumBuy = 0;
           holdings.forEach((h: any) => {
-            sumValue += h.quantity * h.current_price;
+            sumValue += h.quantity * (h.current_price || h.buy_price);
             sumBuy += h.quantity * h.buy_price;
           });
           const dailyDiff = sumValue * 0.012; // simulated daily gain
@@ -139,10 +187,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onSelectTicker, ta
     const hours = now.getHours();
     const minutes = now.getMinutes();
     const timeVal = hours * 100 + minutes;
-    
-    // Weekend closed
     if (day === 0 || day === 6) return false;
-    // NSE/BSE Hours: 9:15 AM to 3:30 PM (915 to 1530)
     return timeVal >= 915 && timeVal <= 1530;
   };
 
@@ -211,23 +256,72 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onSelectTicker, ta
       </div>
 
       {/* INDEX TICKER TAPE */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        {macroData?.global_indices?.map((index: any, idx: number) => {
-          const isUp = index.change.startsWith("+");
-          return (
-            <div key={idx} className="glass-card p-4 rounded-xl flex justify-between items-center border border-light-border dark:border-dark-border bg-black/5 dark:bg-white/5">
-              <div>
-                <span className="text-[10px] text-brand-muted uppercase font-bold tracking-wider block">{index.name}</span>
-                <span className="text-sm font-mono font-bold mt-1 block text-slate-800 dark:text-white">{index.value}</span>
-              </div>
-              <span className={`text-[10px] font-mono font-bold px-2 py-0.5 rounded ${
-                isUp ? "bg-brand-secondary/10 text-brand-secondary" : "bg-brand-danger/10 text-brand-danger"
-              }`}>
-                {index.change}
-              </span>
-            </div>
-          );
-        })}
+      <div className="space-y-4">
+        <div>
+          <span className="text-[8px] font-black uppercase text-brand-muted tracking-widest block">Indian Indices</span>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-1.5">
+            {macroData?.indian_indices?.map((index: any, idx: number) => {
+              const isUp = index.change.startsWith("+");
+              return (
+                <div key={idx} className="glass-card p-4 rounded-xl flex justify-between items-center border border-light-border dark:border-dark-border bg-black/5 dark:bg-white/5">
+                  <div>
+                    <span className="text-[10px] text-brand-muted uppercase font-bold tracking-wider block">{index.name}</span>
+                    <span className="text-sm font-mono font-bold mt-1 block text-slate-800 dark:text-white">{index.price}</span>
+                  </div>
+                  <span className={`text-[10px] font-mono font-bold px-2 py-0.5 rounded ${
+                    isUp ? "bg-brand-secondary/10 text-brand-secondary" : "bg-brand-danger/10 text-brand-danger"
+                  }`}>
+                    {index.change}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        <div>
+          <span className="text-[8px] font-black uppercase text-brand-muted tracking-widest block">Global Market Snapshot</span>
+          <div className="grid grid-cols-2 md:grid-cols-6 gap-4 mt-1.5">
+            {macroData?.global_markets?.map((index: any, idx: number) => {
+              const isUp = index.change.startsWith("+");
+              return (
+                <div key={idx} className="glass-card p-3 rounded-xl flex justify-between items-center border border-light-border dark:border-dark-border bg-black/5 dark:bg-white/5">
+                  <div>
+                    <span className="text-[9px] text-brand-muted uppercase font-bold tracking-wider block truncate max-w-[75px]">{index.name}</span>
+                    <span className="text-xs font-mono font-bold mt-0.5 block text-slate-800 dark:text-white">{index.price}</span>
+                  </div>
+                  <span className={`text-[9px] font-mono font-bold px-1.5 py-0.5 rounded ${
+                    isUp ? "bg-brand-secondary/10 text-brand-secondary" : "bg-brand-danger/10 text-brand-danger"
+                  }`}>
+                    {index.change}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        <div>
+          <span className="text-[8px] font-black uppercase text-brand-muted tracking-widest block">Commodities & Crypto Rates</span>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-1.5">
+            {macroData?.commodities?.map((index: any, idx: number) => {
+              const isUp = index.change.startsWith("+");
+              return (
+                <div key={idx} className="glass-card p-3 rounded-xl flex justify-between items-center border border-light-border dark:border-dark-border bg-black/5 dark:bg-white/5">
+                  <div>
+                    <span className="text-[9px] text-brand-muted uppercase font-bold tracking-wider block">{index.name}</span>
+                    <span className="text-xs font-mono font-bold mt-0.5 block text-slate-800 dark:text-white">{index.price}</span>
+                  </div>
+                  <span className={`text-[9px] font-mono font-bold px-1.5 py-0.5 rounded ${
+                    isUp ? "bg-brand-secondary/10 text-brand-secondary" : "bg-brand-danger/10 text-brand-danger"
+                  }`}>
+                    {index.change}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
       </div>
 
       {/* PRIMARY COLUMNS: Main Area & Sidebar */}
@@ -239,7 +333,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onSelectTicker, ta
           {/* Active Stock Intelligence Blocks */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             
-            {/* Top Gainers & Losers Tabbed Section */}
+            {/* Top Gainers & Losers Section */}
             <div className="glass-card p-5 rounded-2xl border border-light-border dark:border-dark-border space-y-4">
               <div className="flex items-center gap-2 border-b border-light-border dark:border-dark-border pb-3">
                 <Landmark className="w-4 h-4 text-brand-secondary" />
@@ -338,7 +432,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onSelectTicker, ta
           {/* Sector Heatmap & FII/DII Net Cash Flows */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             
-            {/* Sector Heatmap Blocks */}
+            {/* Sector Heatmap */}
             <div className="md:col-span-2 glass-card p-5 rounded-2xl border border-light-border dark:border-dark-border space-y-4">
               <div className="flex items-center gap-2 border-b border-light-border dark:border-dark-border pb-3">
                 <Percent className="w-4 h-4 text-brand-primary" />
@@ -466,67 +560,28 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onSelectTicker, ta
               )}
 
               {activeCalendarTab === "economic" && (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {macroData?.economic_calendar?.map((ec: any, idx: number) => (
-                    <div key={idx} className="p-3 bg-black/5 dark:bg-white/5 border border-light-border dark:border-dark-border rounded-xl flex justify-between items-center">
-                      <div>
-                        <span className="font-bold block text-slate-800 dark:text-slate-200">{ec.event}</span>
-                        <span className="text-[10px] text-brand-muted font-mono">Date: {ec.date} | Forecast: {ec.forecast} (Prior: {ec.prior})</span>
+                <div className="space-y-4">
+                  {/* Economic indicators snapshot */}
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                    {macroData?.indicators?.map((ind: any, idx: number) => (
+                      <div key={idx} className="p-3 bg-black/5 dark:bg-white/5 border border-light-border dark:border-dark-border rounded-xl">
+                        <span className="text-[9px] font-sans font-bold uppercase text-brand-muted block">{ind.name}</span>
+                        <span className="text-xs font-mono font-black text-brand-primary mt-1 block">{ind.value}</span>
+                        <div className="flex justify-between items-center text-[8px] mt-1.5 border-t border-light-border dark:border-dark-border pt-1">
+                          <span className="text-brand-muted">{ind.status}</span>
+                          <span className="text-brand-secondary font-bold font-mono">{ind.impact}</span>
+                        </div>
                       </div>
-                      <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded font-mono uppercase ${
-                        ec.impact === "High" || ec.impact === "Critical" ? "bg-brand-danger/10 text-brand-danger" : "bg-brand-primary/10 text-brand-primary"
-                      }`}>{ec.impact}</span>
-                    </div>
-                  )) || <div className="text-brand-muted py-8 text-center">No major reports scheduled this week.</div>}
+                    ))}
+                  </div>
                 </div>
               )}
             </div>
           </div>
 
-          {/* Institutional News Intelligence */}
-          <div className="glass-card p-5 rounded-2xl border border-light-border dark:border-dark-border space-y-4">
-            <div className="flex items-center justify-between border-b border-light-border dark:border-dark-border pb-3">
-              <div className="flex items-center gap-1.5">
-                <Newspaper className="w-4 h-4 text-brand-primary" />
-                <h3 className="text-xs font-black uppercase text-brand-primary tracking-wider">Terminal News Intelligence & Sentiment</h3>
-              </div>
-              <button onClick={fetchDashboardData} className="p-1.5 rounded-lg bg-black/5 dark:bg-white/5 text-brand-muted hover:text-slate-800 dark:hover:text-white transition-colors">
-                <RefreshCw className="w-3.5 h-3.5" />
-              </button>
-            </div>
-
-            {loading ? (
-              <div className="py-16 text-center text-xs text-brand-muted">Fetching news cycles...</div>
-            ) : (
-              <div className="space-y-4 max-h-[350px] overflow-y-auto pr-2">
-                {fgData?.all_news && fgData.all_news.length > 0 ? (
-                  fgData.all_news.map((art: any, idx: number) => (
-                    <div key={idx} className="p-3.5 bg-black/5 dark:bg-white/5 border border-light-border dark:border-dark-border rounded-xl text-xs space-y-2 hover:border-brand-primary/10 transition-all">
-                      <div className="flex justify-between items-start">
-                        <div>
-                          <a href={art.link} target="_blank" rel="noopener noreferrer" className="font-bold text-slate-800 dark:text-white hover:underline block leading-tight">{art.title}</a>
-                          <span className="text-[9px] text-brand-muted block mt-1">Publisher: {art.publisher} | Scope: {art.impact}</span>
-                        </div>
-                        <span className={`text-[9px] font-mono font-bold px-2 py-0.5 rounded uppercase ${
-                          art.sentiment === "Bullish" ? "bg-brand-secondary/10 text-brand-secondary" : "bg-brand-danger/10 text-brand-danger"
-                        }`}>{art.sentiment}</span>
-                      </div>
-                      <p className="text-brand-muted leading-relaxed text-[11px]">{art.content}</p>
-                      <div className="text-[10px] text-brand-primary font-mono bg-brand-primary/5 p-2 rounded border border-brand-primary/10">
-                        Evidence Signal: {art.accumulation_distribution_evidence}
-                      </div>
-                    </div>
-                  ))
-                ) : (
-                  <div className="text-brand-muted text-center py-12">No active intelligence stories found.</div>
-                )}
-              </div>
-            )}
-          </div>
-
         </div>
 
-        {/* SIDEBAR RIGHT AREA: Watchlists, Research Notes & Quick Actions */}
+        {/* SIDEBAR RIGHT AREA: Watchlists, Alert triggers, Notes */}
         <div className="space-y-6">
           
           {/* Quick Actions Panel */}
@@ -539,6 +594,60 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onSelectTicker, ta
               <button onClick={() => onSelectTicker("TCS.NS")} className="p-2.5 rounded bg-black/5 dark:bg-white/5 border border-light-border dark:border-dark-border hover:border-brand-primary/20 text-slate-800 dark:text-slate-200 transition-all">
                 TCS Audit
               </button>
+            </div>
+          </div>
+
+          {/* Real-time Alert triggers */}
+          <div className="glass-card p-5 rounded-2xl border border-light-border dark:border-dark-border space-y-3">
+            <div className="flex items-center gap-1.5 border-b border-light-border dark:border-dark-border pb-2.5">
+              <ShieldAlert className="w-4 h-4 text-brand-warning animate-pulse" />
+              <h3 className="text-xs font-black uppercase text-brand-primary tracking-wider">Alert Triggers</h3>
+            </div>
+            
+            <form onSubmit={handleCreateAlert} className="space-y-2">
+              <div className="flex gap-1.5">
+                <input 
+                  type="text" 
+                  value={alertTicker}
+                  onChange={(e) => setAlertTicker(e.target.value)}
+                  placeholder="TCS.NS"
+                  className="w-1/2 px-2 py-1 text-[10px] rounded border border-light-border dark:border-dark-border bg-black/5 dark:bg-white/5 text-slate-800 dark:text-white uppercase focus:outline-none"
+                />
+                <select 
+                  value={alertType}
+                  onChange={(e) => setAlertType(e.target.value)}
+                  className="w-1/2 px-1 py-1 text-[10px] rounded border border-light-border dark:border-dark-border bg-black/5 dark:bg-white/5 text-slate-800 dark:text-white focus:outline-none"
+                >
+                  <option value="Price">Price</option>
+                  <option value="Volume">Volume</option>
+                  <option value="Breakout">Breakout</option>
+                </select>
+              </div>
+              <div className="flex gap-1.5 items-center">
+                <input 
+                  type="number" 
+                  value={alertValue}
+                  onChange={(e) => setAlertValue(Number(e.target.value))}
+                  placeholder="150"
+                  className="w-2/3 px-2 py-1 text-[10px] rounded border border-light-border dark:border-dark-border bg-black/5 dark:bg-white/5 text-slate-800 dark:text-white focus:outline-none"
+                />
+                <button type="submit" className="w-1/3 bg-brand-primary text-white text-[10px] py-1 rounded hover:bg-brand-primary/90 font-bold uppercase">Set</button>
+              </div>
+            </form>
+
+            <div className="space-y-1.5 max-h-32 overflow-y-auto pt-2">
+              {alerts.map((a: any) => (
+                <div key={a.id} className="flex justify-between items-center text-[10px] font-mono p-1.5 rounded bg-black/5 dark:bg-white/5 border border-light-border dark:border-dark-border">
+                  <div>
+                    <span className="font-bold text-brand-primary">{a.ticker}</span>
+                    <span className="text-brand-muted ml-1.5">{a.type} &gt; {a.value}</span>
+                  </div>
+                  <button onClick={() => handleDeleteAlert(a.id)} className="text-brand-danger hover:underline">Cancel</button>
+                </div>
+              ))}
+              {alerts.length === 0 && (
+                <div className="text-[9px] text-brand-muted text-center py-2">No active alerts configured.</div>
+              )}
             </div>
           </div>
 
