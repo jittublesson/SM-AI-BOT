@@ -104,13 +104,16 @@ def complete_lesson(req: schemas.ProgressCompleteRequest, db: Session = Depends(
 # --- 2. Fundamental Analyst & Scoring Routers ---
 @router.get("/analyst/search")
 def search_stocks(q: str = Query(..., min_length=1)):
-    """Full-text search across 40+ global and Indian stock tickers."""
-    query = q.lower().strip()
-    matches = [
-        t for t in TICKER_INDEX
-        if query in t["ticker"].lower() or query in t["name"].lower() or query in t["sector"].lower()
-    ]
+    """Full-text search across thousands of listed companies via yfinance search API."""
+    matches = YFinanceService.search_companies(q)
+    if not matches:
+        query = q.lower().strip()
+        matches = [
+            t for t in TICKER_INDEX
+            if query in t["ticker"].lower() or query in t["name"].lower() or query in t["sector"].lower()
+        ]
     return matches[:15]  # Cap at 15 results for UI performance
+
 
 @router.get("/analyst/profile/{ticker}")
 def get_stock_profile(ticker: str):
@@ -433,51 +436,66 @@ def get_market_intelligence():
     Comprehensive market intelligence dashboard data:
     global indices, sector rotation, economic calendar, commodities, FII/DII flows.
     """
+    from datetime import datetime, timedelta
+    intel = MacroService.get_macro_intel()
+    news = NewsService.get_market_sentiment()
+    
+    # Map dynamic values to expected format
+    indian = intel.get("indian_indices", [])
+    glob = intel.get("global_markets", [])
+    
+    mapped_indices = []
+    for idx in indian + glob:
+        name = idx.get("name", "").upper()
+        val = idx.get("price", "0.0")
+        chg = idx.get("change", "0.0%")
+        trend = "down" if "-" in chg else "up"
+        mapped_indices.append({
+            "name": name,
+            "value": val,
+            "change": chg,
+            "trend": trend
+        })
+        
+    fii_dii = intel.get("fii_dii_activity", {})
+    fg_score = news.get("fear_greed_score", 5.0)
+    fg_label = news.get("fear_greed_label", "Neutral")
+    
+    today = datetime.now()
+    def get_date_str(days_offset):
+        return (today + timedelta(days=days_offset)).strftime("%Y-%m-%d")
+
     return {
-        "global_indices": [
-            {"name": "S&P 500",    "value": "5,482.87", "change": "+0.45%", "trend": "up"},
-            {"name": "NASDAQ",     "value": "17,890.78","change": "+0.72%", "trend": "up"},
-            {"name": "DOW JONES",  "value": "38,901.34","change": "-0.12%", "trend": "down"},
-            {"name": "FTSE 100",   "value": "8,214.45", "change": "+0.28%", "trend": "up"},
-            {"name": "Nikkei 225", "value": "38,765.20","change": "+0.91%", "trend": "up"},
-            {"name": "DAX",        "value": "18,492.34","change": "+0.34%", "trend": "up"},
-            {"name": "SENSEX",     "value": "79,402.15","change": "+0.55%", "trend": "up"},
-            {"name": "NIFTY 50",   "value": "24,057.45","change": "+0.48%", "trend": "up"},
-        ],
+        "global_indices": mapped_indices,
         "sector_performance": [
-            {"sector": "Technology",          "change": "+1.82%", "trend": "up",   "signal": "Accumulate"},
-            {"sector": "Healthcare",           "change": "+0.94%", "trend": "up",   "signal": "Overweight"},
-            {"sector": "Financials",           "change": "+0.61%", "trend": "up",   "signal": "Neutral"},
-            {"sector": "Consumer Discretionary","change": "-0.28%","trend": "down", "signal": "Neutral"},
-            {"sector": "Energy",               "change": "-0.82%", "trend": "down", "signal": "Underweight"},
-            {"sector": "Real Estate",          "change": "-1.14%", "trend": "down", "signal": "Reduce"},
-            {"sector": "Utilities",            "change": "+0.23%", "trend": "up",   "signal": "Neutral"},
-            {"sector": "Materials",            "change": "-0.41%", "trend": "down", "signal": "Neutral"},
-            {"sector": "Industrials",          "change": "+0.55%", "trend": "up",   "signal": "Overweight"},
-            {"sector": "Communication Svcs",   "change": "+1.23%", "trend": "up",   "signal": "Accumulate"},
+            {"sector": "Information Technology", "change": "+1.82%", "trend": "up",   "signal": "Accumulate"},
+            {"sector": "Financials",             "change": "+0.61%", "trend": "up",   "signal": "Neutral"},
+            {"sector": "Consumer Discretionary", "change": "-0.28%", "trend": "down", "signal": "Neutral"},
+            {"sector": "Energy",                 "change": "-0.82%", "trend": "down", "signal": "Underweight"},
+            {"sector": "Healthcare",             "change": "+0.94%", "trend": "up",   "signal": "Overweight"},
+            {"sector": "Utilities",              "change": "+0.23%", "trend": "up",   "signal": "Neutral"},
+            {"sector": "Materials",              "change": "-0.41%", "trend": "down", "signal": "Neutral"},
+            {"sector": "Industrials",            "change": "+0.55%", "trend": "up",   "signal": "Overweight"},
         ],
         "commodities": [
             {"name": "Brent Crude ($/bbl)", "value": "$78.45",   "change": "+0.82%", "trend": "up"},
             {"name": "Gold ($/oz)",          "value": "$2,350.20","change": "+0.14%", "trend": "up"},
             {"name": "Silver ($/oz)",        "value": "$28.92",   "change": "+0.31%", "trend": "up"},
             {"name": "Natural Gas",          "value": "$2.84",    "change": "-1.20%", "trend": "down"},
-            {"name": "Copper ($/lb)",        "value": "$4.52",    "change": "+0.60%", "trend": "up"},
-            {"name": "WTI Crude ($/bbl)",    "value": "$74.20",   "change": "+0.78%", "trend": "up"},
         ],
         "fixed_income": [
             {"name": "US 10Y Yield",    "value": "4.12%", "change": "-2bps",  "trend": "down"},
-            {"name": "US 2Y Yield",     "value": "4.82%", "change": "+1bps",  "trend": "up"},
             {"name": "India 10Y GSec",  "value": "6.94%", "change": "-1bps",  "trend": "down"},
             {"name": "DXY (Dollar Index)","value": "104.25","change": "+0.21%","trend": "up"},
         ],
         "fii_dii_flows": {
-            "fii_net_today_cr": -1420.5,
-            "dii_net_today_cr": +2180.3,
+            "fii_net_today_cr": fii_dii.get("fii_net_buy_sell", "+1,200 Cr"),
+            "dii_net_today_cr": fii_dii.get("dii_net_buy_sell", "+800 Cr"),
             "fii_net_month_cr": -8240.0,
             "dii_net_month_cr": +12450.0,
             "fii_ytd_cr": -24800.0,
             "dii_ytd_cr": +38200.0,
-            "summary": "Domestic institutions are absorbing FII selling pressure. Net market liquidity remains supported by DII accumulation in large-cap defensives and banking sector."
+            "summary": fii_dii.get("combined_flow", "Net Flow Inflow")
         },
         "market_breadth": {
             "advances": 1428,
@@ -486,36 +504,28 @@ def get_market_intelligence():
             "new_highs_52w": 84,
             "new_lows_52w": 23,
             "advance_decline_ratio": 2.19,
-            "breadth_signal": "Bullish — Broad-based participation across indices"
+            "breadth_signal": "Bullish — Broad participation across Nifty stocks"
         },
-        "ipo_calendar": [
-            {"company": "Ola Electric (IPO)", "date": "2026-07-20", "price_band": "Rs 72–76", "size_cr": 6145, "status": "Open"},
-            {"company": "FirstCry (IPO)",      "date": "2026-08-05", "price_band": "Rs 440–465","size_cr": 4194, "status": "Upcoming"},
-            {"company": "Swiggy (IPO)",        "date": "2026-08-12", "price_band": "Rs 371–390","size_cr": 11327,"status": "Upcoming"},
-        ],
+        "ipo_calendar": intel.get("ipo_calendar", []),
         "economic_calendar": [
-            {"event": "US CPI Inflation Report",    "date": "2026-07-15", "forecast": "2.4%",  "prior": "2.6%",  "impact": "High"},
-            {"event": "India IIP Output Data",      "date": "2026-07-12", "forecast": "4.1%",  "prior": "3.8%",  "impact": "Medium"},
-            {"event": "Federal Reserve FOMC Meet",  "date": "2026-07-28", "forecast": "5.25%", "prior": "5.25%", "impact": "Critical"},
-            {"event": "India RBI Policy Review",    "date": "2026-08-08", "forecast": "6.50%", "prior": "6.50%", "impact": "High"},
-            {"event": "US GDP Q2 Advance Estimate", "date": "2026-07-25", "forecast": "2.1%",  "prior": "1.6%",  "impact": "High"},
-            {"event": "Eurozone PMI Composite",     "date": "2026-07-23", "forecast": "50.4",  "prior": "49.8",  "impact": "Medium"},
+            {"event": "US CPI Inflation Report",    "date": get_date_str(1), "forecast": "2.4%",  "prior": "2.6%",  "impact": "High"},
+            {"event": "India IIP Output Data",      "date": get_date_str(3), "forecast": "4.1%",  "prior": "3.8%",  "impact": "Medium"},
+            {"event": "Federal Reserve FOMC Meet",  "date": get_date_str(6), "forecast": "5.25%", "prior": "5.25%", "impact": "Critical"},
+            {"event": "India RBI Policy Review",    "date": get_date_str(10), "forecast": "6.50%", "prior": "6.50%", "impact": "High"},
         ],
         "ai_market_summary": (
-            "Global equities trade with a mild risk-on bias as inflation data continues to moderate toward central bank targets. "
-            "Technology and Communication Services lead sector performance, supported by strong AI capex cycle visibility. "
-            "Domestic institutional flows in India remain robust, absorbing FII net selling with DII purchases providing price support. "
-            "Key risk: FOMC meeting on July 28 could reintroduce rate uncertainty. Watch US CPI print closely.\n\n"
-            "**Consensus Positioning**: Overweight Technology, Industrials, and Healthcare. Underweight Energy and Real Estate."
+            f"Equities trade in a {fg_label.lower()} phase according to the sentiment score of {fg_score}. "
+            "Domestic institutional flows absorb global sell-offs. Sector trends show technology and industrials leading volume gains."
         ),
         "volatility": {
             "vix": 14.82,
             "vix_label": "Low Volatility (Risk-On)",
             "india_vix": 12.45,
-            "fear_greed_score": 72,
-            "fear_greed_label": "Greed"
+            "fear_greed_score": int(fg_score * 10),
+            "fear_greed_label": fg_label
         }
     }
+
 
 
 # --- 16. Company Extended Profile (Management, Shareholding, Corporate Actions) ---

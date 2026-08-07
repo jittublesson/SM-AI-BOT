@@ -3,7 +3,7 @@ import {
   Cpu, LayoutDashboard, GraduationCap, BarChart3, FileText, Briefcase, 
   Activity, Code, LineChart, Landmark, Share2, Sun, Moon, Search, 
   MessageSquare, Bookmark, X, Terminal, Eye, BookOpen, Globe, HelpCircle, Coins,
-  ChevronLeft, ChevronRight, Star
+  ChevronLeft, ChevronRight, Star, TrendingUp
 } from "lucide-react";
 
 // Views imports
@@ -39,6 +39,8 @@ export default function App() {
 
   // Search & Command Palette states
   const [searchQuery, setSearchQuery] = useState("");
+  const [activeSearchIndex, setActiveSearchIndex] = useState<number>(-1);
+  const [recentSearches, setRecentSearches] = useState<string[]>([]);
   const [paletteResults, setPaletteResults] = useState<any>({
     stocks: [],
     funds: [],
@@ -62,8 +64,35 @@ export default function App() {
   const [bookmarksList, setBookmarksList] = useState<any[]>([]);
   const [showHelp, setShowHelp] = useState(false);
 
-  // Keyboard shortcut listeners (Ctrl+K, Ctrl+B, Ctrl+D, Ctrl+/, ESC)
+  // Load recent searches when palette opens
   useEffect(() => {
+    if (showPalette) {
+      const saved = localStorage.getItem("wealthpilot_recent_searches");
+      if (saved) {
+        setRecentSearches(JSON.parse(saved));
+      }
+    }
+  }, [showPalette]);
+
+  // Keyboard shortcut listeners (Ctrl+K, Ctrl+B, Ctrl+D, Ctrl+/, ESC, Arrows, Enter)
+  useEffect(() => {
+    const getFlatResults = () => {
+      const flat: Array<{ type: string; id: string; name: string; extra?: string }> = [];
+      if (paletteResults.stocks) {
+        paletteResults.stocks.forEach((s: any) => flat.push({ type: "stock", id: s.ticker, name: s.name, extra: s.sector }));
+      }
+      if (paletteResults.funds) {
+        paletteResults.funds.forEach((f: any) => flat.push({ type: "fund", id: f.id, name: f.name, extra: f.category }));
+      }
+      if (paletteResults.reports) {
+        paletteResults.reports.forEach((r: any) => flat.push({ type: "report", id: r.ticker, name: r.type }));
+      }
+      if (paletteResults.academy) {
+        paletteResults.academy.forEach((l: any) => flat.push({ type: "lesson", id: l.slug, name: l.title }));
+      }
+      return flat;
+    };
+
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
         setShowPalette(false);
@@ -71,6 +100,29 @@ export default function App() {
         setShowHelp(false);
         return;
       }
+
+      if (showPalette) {
+        const flat = getFlatResults();
+        if (e.key === "ArrowDown") {
+          e.preventDefault();
+          setActiveSearchIndex(prev => (flat.length === 0 ? -1 : (prev + 1) % flat.length));
+          return;
+        }
+        if (e.key === "ArrowUp") {
+          e.preventDefault();
+          setActiveSearchIndex(prev => (flat.length === 0 ? -1 : (prev - 1 + flat.length) % flat.length));
+          return;
+        }
+        if (e.key === "Enter") {
+          e.preventDefault();
+          if (activeSearchIndex >= 0 && activeSearchIndex < flat.length) {
+            const selectedItem = flat[activeSearchIndex];
+            handleSelectSearchResult(selectedItem.type as any, selectedItem.id);
+          }
+          return;
+        }
+      }
+
       if (e.ctrlKey || e.metaKey) {
         if (e.key.toLowerCase() === "k") {
           e.preventDefault();
@@ -89,7 +141,7 @@ export default function App() {
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, []);
+  }, [showPalette, paletteResults, activeSearchIndex]);
 
   // System health polling check
   const checkHealth = async () => {
@@ -247,6 +299,15 @@ export default function App() {
   };
 
   const handleSelectSearchResult = (type: "stock" | "fund" | "report" | "news" | "lesson", symbol: string) => {
+    // Save to recent searches
+    const existing = localStorage.getItem("wealthpilot_recent_searches");
+    const arr = existing ? JSON.parse(existing) : [];
+    const valToSave = symbol.toUpperCase();
+    if (!arr.includes(valToSave)) {
+      arr.unshift(valToSave);
+      localStorage.setItem("wealthpilot_recent_searches", JSON.stringify(arr.slice(0, 6)));
+    }
+    
     if (type === "stock") {
       setTicker(symbol);
       setActiveTab("fundamentals");
@@ -262,6 +323,7 @@ export default function App() {
     }
     setSearchQuery("");
     setShowPalette(false);
+    setActiveSearchIndex(-1);
   };
 
   const toggleFavorite = (tabId: string) => {
@@ -668,87 +730,172 @@ export default function App() {
             {/* Categorized Results list */}
             <div className="flex-1 overflow-y-auto p-4 space-y-4">
               {searchQuery === "" ? (
-                <div className="text-xs text-brand-muted text-center p-6 flex flex-col space-y-1">
-                  <span className="font-bold text-brand-primary text-sm uppercase">WealthPilot Unified Search</span>
-                  <span>Search across stocks, mutual funds, reports, and academy lessons.</span>
+                <div className="space-y-4">
+                  {/* Recent Searches */}
+                  {recentSearches.length > 0 && (
+                    <div className="space-y-1.5">
+                      <span className="text-[8px] font-black text-brand-muted tracking-widest uppercase block">Recent Searches</span>
+                      <div className="flex flex-wrap gap-2">
+                        {recentSearches.map((s, idx) => (
+                          <button
+                            key={idx}
+                            onClick={() => handleSelectSearchResult("stock", s)}
+                            className="px-2.5 py-1 text-[10px] font-mono font-bold bg-black/5 dark:bg-white/5 border border-light-border dark:border-dark-border rounded hover:border-brand-primary/20 text-slate-700 dark:text-slate-300 transition-colors"
+                          >
+                            {s}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Popular Searches */}
+                  <div className="space-y-1.5">
+                    <span className="text-[8px] font-black text-brand-muted tracking-widest uppercase block">Popular Searches</span>
+                    <div className="flex flex-wrap gap-2">
+                      {["RELIANCE.NS", "TCS.NS", "HDFCBANK.NS", "SBI Bluechip", "Parag Parikh Flexi Cap", "AAPL"].map((s, idx) => {
+                        const type = s.includes(".NS") || s === "AAPL" ? "stock" : "fund";
+                        return (
+                          <button
+                            key={idx}
+                            onClick={() => handleSelectSearchResult(type, s)}
+                            className="px-2.5 py-1 text-[10px] font-sans font-bold bg-black/5 dark:bg-white/5 border border-light-border dark:border-dark-border rounded hover:border-brand-primary/20 text-slate-700 dark:text-slate-300 transition-colors"
+                          >
+                            {s}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
                 </div>
               ) : (
                 <>
-                  {/* Stocks Category */}
-                  {paletteResults.stocks.length > 0 && (
-                    <div className="space-y-1.5">
-                      <span className="text-[8px] font-black text-brand-primary tracking-widest uppercase block">Stocks & Equity</span>
-                      <div className="space-y-1">
-                        {paletteResults.stocks.map((s: any, idx: number) => (
-                          <div
-                            key={idx}
-                            onClick={() => handleSelectSearchResult("stock", s.ticker)}
-                            className="p-2 hover:bg-black/5 dark:hover:bg-white/5 rounded text-xs cursor-pointer flex justify-between items-center transition-colors border border-transparent hover:border-brand-primary/10"
-                          >
-                            <div><strong className="text-brand-primary font-mono mr-2">{s.ticker}</strong> {s.name}</div>
-                            <span className="text-[9px] text-brand-muted uppercase font-mono">{s.sector}</span>
+                  {(() => {
+                    let globalIdx = -1;
+                    return (
+                      <>
+                        {/* Stocks Category */}
+                        {paletteResults.stocks.length > 0 && (
+                          <div className="space-y-1.5">
+                            <span className="text-[8px] font-black text-brand-primary tracking-widest uppercase block">Stocks & Equity</span>
+                            <div className="space-y-1">
+                              {paletteResults.stocks.map((s: any, idx: number) => {
+                                globalIdx++;
+                                const isActive = activeSearchIndex === globalIdx;
+                                return (
+                                  <div
+                                    key={idx}
+                                    onClick={() => handleSelectSearchResult("stock", s.ticker)}
+                                    className={`p-2 rounded text-xs cursor-pointer flex justify-between items-center transition-colors border ${
+                                      isActive
+                                        ? "bg-brand-primary/10 border-brand-primary/20 dark:bg-brand-primary/20 text-brand-primary font-bold"
+                                        : "bg-transparent border-transparent hover:bg-black/5 dark:hover:bg-white/5 text-slate-800 dark:text-slate-200"
+                                    }`}
+                                  >
+                                    <div className="flex items-center gap-1.5">
+                                      <Landmark className="w-3.5 h-3.5" />
+                                      <div><strong className="font-mono mr-2">{s.ticker}</strong> {s.name}</div>
+                                    </div>
+                                    <span className="text-[9px] text-brand-muted uppercase font-mono">{s.sector}</span>
+                                  </div>
+                                );
+                              })}
+                            </div>
                           </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
+                        )}
 
-                  {/* Mutual Funds Category */}
-                  {paletteResults.funds.length > 0 && (
-                    <div className="space-y-1.5">
-                      <span className="text-[8px] font-black text-brand-secondary tracking-widest uppercase block">Mutual Funds</span>
-                      <div className="space-y-1">
-                        {paletteResults.funds.map((f: any, idx: number) => (
-                          <div
-                            key={idx}
-                            onClick={() => handleSelectSearchResult("fund", f.id)}
-                            className="p-2 hover:bg-black/5 dark:hover:bg-white/5 rounded text-xs cursor-pointer flex justify-between items-center transition-colors border border-transparent hover:border-brand-primary/10"
-                          >
-                            <div><strong className="text-brand-secondary font-mono mr-2">MF</strong> {f.name}</div>
-                            <span className="text-[9px] text-brand-muted uppercase font-mono">{f.category}</span>
+                        {/* Mutual Funds Category */}
+                        {paletteResults.funds.length > 0 && (
+                          <div className="space-y-1.5 mt-3">
+                            <span className="text-[8px] font-black text-brand-secondary tracking-widest uppercase block">Mutual Funds</span>
+                            <div className="space-y-1">
+                              {paletteResults.funds.map((f: any, idx: number) => {
+                                globalIdx++;
+                                const isActive = activeSearchIndex === globalIdx;
+                                return (
+                                  <div
+                                    key={idx}
+                                    onClick={() => handleSelectSearchResult("fund", f.id)}
+                                    className={`p-2 rounded text-xs cursor-pointer flex justify-between items-center transition-colors border ${
+                                      isActive
+                                        ? "bg-brand-secondary/10 border-brand-secondary/20 dark:bg-brand-secondary/20 text-brand-secondary font-bold"
+                                        : "bg-transparent border-transparent hover:bg-black/5 dark:hover:bg-white/5 text-slate-800 dark:text-slate-200"
+                                    }`}
+                                  >
+                                    <div className="flex items-center gap-1.5">
+                                      <TrendingUp className="w-3.5 h-3.5 text-brand-secondary" />
+                                      <div><strong className="font-mono mr-2">MF</strong> {f.name}</div>
+                                    </div>
+                                    <span className="text-[9px] text-brand-muted uppercase font-mono">{f.category}</span>
+                                  </div>
+                                );
+                              })}
+                            </div>
                           </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
+                        )}
 
-                  {/* Reports RAG Category */}
-                  {paletteResults.reports.length > 0 && (
-                    <div className="space-y-1.5">
-                      <span className="text-[8px] font-black text-brand-info tracking-widest uppercase block">Filings & Reports</span>
-                      <div className="space-y-1">
-                        {paletteResults.reports.map((r: any, idx: number) => (
-                          <div
-                            key={idx}
-                            onClick={() => handleSelectSearchResult("report", r.ticker)}
-                            className="p-2 hover:bg-black/5 dark:hover:bg-white/5 rounded text-xs cursor-pointer flex justify-between items-center transition-colors border border-transparent hover:border-brand-primary/10"
-                          >
-                            <div><strong className="text-brand-info font-mono mr-2">{r.ticker}</strong> {r.type}</div>
-                            <span className="text-[9px] text-brand-muted uppercase font-mono">RAG Doc</span>
+                        {/* Reports RAG Category */}
+                        {paletteResults.reports.length > 0 && (
+                          <div className="space-y-1.5 mt-3">
+                            <span className="text-[8px] font-black text-brand-info tracking-widest uppercase block">Filings & Reports</span>
+                            <div className="space-y-1">
+                              {paletteResults.reports.map((r: any, idx: number) => {
+                                globalIdx++;
+                                const isActive = activeSearchIndex === globalIdx;
+                                return (
+                                  <div
+                                    key={idx}
+                                    onClick={() => handleSelectSearchResult("report", r.ticker)}
+                                    className={`p-2 rounded text-xs cursor-pointer flex justify-between items-center transition-colors border ${
+                                      isActive
+                                        ? "bg-brand-primary/10 border-brand-primary/20 dark:bg-brand-primary/20 text-brand-primary font-bold"
+                                        : "bg-transparent border-transparent hover:bg-black/5 dark:hover:bg-white/5 text-slate-800 dark:text-slate-200"
+                                    }`}
+                                  >
+                                    <div className="flex items-center gap-1.5">
+                                      <FileText className="w-3.5 h-3.5 text-brand-primary" />
+                                      <div><strong className="font-mono mr-2">{r.ticker}</strong> {r.type}</div>
+                                    </div>
+                                    <span className="text-[9px] text-brand-muted uppercase font-mono">RAG Doc</span>
+                                  </div>
+                                );
+                              })}
+                            </div>
                           </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
+                        )}
 
-                  {/* Academy Category */}
-                  {paletteResults.academy.length > 0 && (
-                    <div className="space-y-1.5">
-                      <span className="text-[8px] font-black text-brand-warning tracking-widest uppercase block">Investing Academy</span>
-                      <div className="space-y-1">
-                        {paletteResults.academy.map((l: any, idx: number) => (
-                          <div
-                            key={idx}
-                            onClick={() => handleSelectSearchResult("lesson", l.slug)}
-                            className="p-2 hover:bg-black/5 dark:hover:bg-white/5 rounded text-xs cursor-pointer flex justify-between items-center transition-colors border border-transparent hover:border-brand-primary/10"
-                          >
-                            <div><strong className="text-brand-warning font-mono mr-2">ACADEMY</strong> {l.title}</div>
-                            <span className="text-[9px] text-brand-muted uppercase font-mono">Education</span>
+                        {/* Academy Category */}
+                        {paletteResults.academy.length > 0 && (
+                          <div className="space-y-1.5 mt-3">
+                            <span className="text-[8px] font-black text-brand-warning tracking-widest uppercase block">Investing Academy</span>
+                            <div className="space-y-1">
+                              {paletteResults.academy.map((l: any, idx: number) => {
+                                globalIdx++;
+                                const isActive = activeSearchIndex === globalIdx;
+                                return (
+                                  <div
+                                    key={idx}
+                                    onClick={() => handleSelectSearchResult("lesson", l.slug)}
+                                    className={`p-2 rounded text-xs cursor-pointer flex justify-between items-center transition-colors border ${
+                                      isActive
+                                        ? "bg-brand-warning/10 border-brand-warning/20 dark:bg-brand-warning/20 text-brand-warning font-bold"
+                                        : "bg-transparent border-transparent hover:bg-black/5 dark:hover:bg-white/5 text-slate-800 dark:text-slate-200"
+                                    }`}
+                                  >
+                                    <div className="flex items-center gap-1.5">
+                                      <BookOpen className="w-3.5 h-3.5 text-brand-warning" />
+                                      <div><strong className="font-mono mr-2">ACADEMY</strong> {l.title}</div>
+                                    </div>
+                                    <span className="text-[9px] text-brand-muted uppercase font-mono">Education</span>
+                                  </div>
+                                );
+                              })}
+                            </div>
                           </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
+                        )}
+                      </>
+                    );
+                  })()}
                 </>
               )}
             </div>

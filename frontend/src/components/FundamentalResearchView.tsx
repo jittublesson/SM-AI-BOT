@@ -805,9 +805,19 @@ export const FundamentalResearchView: React.FC<FundamentalResearchViewProps> = (
                 {formatPrice(data.profile.info.price, sourceCurrency, targetCurrency, true)}
               </span>
             </div>
-            <div className="text-[10px] text-brand-muted border-t border-light-border dark:border-dark-border pt-2 mt-2 font-mono flex justify-between">
-              <span>Health Score: <span className="font-bold text-brand-secondary">{data.score.score_rating}/100</span></span>
-              <span>Source: <span className="font-bold text-brand-secondary">{data.profile.data_source}</span></span>
+            <div className="text-[9px] text-brand-muted border-t border-light-border dark:border-dark-border pt-2 mt-2 font-mono space-y-1">
+              <div className="flex justify-between">
+                <span>Health Score: <span className="font-bold text-brand-secondary">{data.score.score_rating}/100</span></span>
+                <span>Source: <span className="font-bold">{data.profile.metadata?.data_source || data.profile.data_source}</span></span>
+              </div>
+              <div className="flex justify-between">
+                <span>Exchange: <span className="font-bold">{data.profile.metadata?.exchange || "NSE"}</span></span>
+                <span>Status: <span className={`font-bold ${data.profile.metadata?.market_status === "Open" ? "text-green-500" : "text-gray-400"}`}>{data.profile.metadata?.market_status || "Closed"}</span></span>
+              </div>
+              <div className="flex justify-between text-[8.5px]">
+                <span>Currency: <span className="font-bold">{data.profile.metadata?.currency || sourceCurrency}</span></span>
+                <span>Updated: <span className="font-bold text-[8px]">{data.profile.metadata?.last_updated || "Live"}</span></span>
+              </div>
             </div>
           </div>
         </div>
@@ -1291,7 +1301,7 @@ export const FundamentalResearchView: React.FC<FundamentalResearchViewProps> = (
                       <div key={idx} className="p-4 bg-black/5 dark:bg-white/5 border border-light-border dark:border-dark-border rounded-lg space-y-2 text-xs">
                         <div className="flex justify-between items-center border-b border-light-border dark:border-dark-border pb-1">
                           <span className="font-bold text-slate-800 dark:text-white">{agent.name}</span>
-                          <span className="font-mono text-[10px] text-brand-primary">Confidence: {int(agent.confidence_score * 100)}%</span>
+                          <span className="font-mono text-[10px] text-brand-primary">Confidence: {Math.round(agent.confidence_score * 100)}%</span>
                         </div>
                         <div className="space-y-1">
                           <span className="font-bold text-brand-muted uppercase text-[9px] block">Key Findings:</span>
