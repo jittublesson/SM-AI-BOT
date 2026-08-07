@@ -333,7 +333,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onSelectTicker, ta
             <h3 className="text-[10px] font-black uppercase text-brand-primary tracking-wider">Market Intelligence News</h3>
           </div>
           <div className="space-y-3">
-            {newsItems.slice(0, 3).map((news, idx) => (
+            {(macroData?.market_news || []).slice(0, 3).map((news: any, idx: number) => (
               <div key={idx} className="space-y-1 text-xs">
                 <div className="flex justify-between items-center text-[8.5px] font-mono text-brand-muted">
                   <span>{news.source}</span>
@@ -352,7 +352,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onSelectTicker, ta
             <h3 className="text-[10px] font-black uppercase text-brand-primary tracking-wider">Corporate & Economic Events</h3>
           </div>
           <div className="space-y-2 font-mono text-[10px]">
-            {calendarEvents[activeCalendarTab]?.slice(0, 3).map((ev: any, idx: number) => (
+            {((macroData?.corporate_calendar || {})[activeCalendarTab] || []).slice(0, 3).map((ev: any, idx: number) => (
               <div key={idx} className="flex justify-between items-center p-2 rounded bg-black/5 dark:bg-white/5 border border-light-border/40 dark:border-dark-border/40">
                 <span className="font-sans font-semibold text-slate-800 dark:text-slate-200">{ev.company || ev.event || ev.name}</span>
                 <span className="text-brand-muted">{ev.date}</span>

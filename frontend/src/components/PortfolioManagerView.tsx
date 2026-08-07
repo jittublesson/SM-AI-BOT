@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from "react";
 import { 
   Briefcase, Plus, Trash2, PieChart, BarChart2, ShieldCheck, 
-  TrendingUp, Activity, Coins, Globe, Landmark, RefreshCw, X, ArrowUpRight
+  TrendingUp, Activity, Coins, Globe, Landmark, RefreshCw, X, ArrowUpRight,
+  ShieldAlert, Cpu
 } from "lucide-react";
 import { formatPrice, formatFinancialValue } from "../utils/currency";
 

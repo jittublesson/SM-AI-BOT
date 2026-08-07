@@ -277,7 +277,7 @@ export const FundamentalResearchView: React.FC<FundamentalResearchViewProps> = (
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 pt-2">
           <div className="p-3.5 bg-black/5 dark:bg-white/5 rounded-xl border border-light-border dark:border-dark-border">
             <span className="text-[9px] text-brand-muted uppercase font-mono font-bold block">Market Capitalization</span>
-            <span className="text-xs font-bold text-slate-800 dark:text-slate-100">{formatFinancialValue(data?.profile?.info?.market_cap || 0)}</span>
+            <span className="text-xs font-bold text-slate-800 dark:text-slate-100">{formatFinancialValue(data?.profile?.info?.market_cap || 0, sourceCurrency, targetCurrency)}</span>
           </div>
           <div className="p-3.5 bg-black/5 dark:bg-white/5 rounded-xl border border-light-border dark:border-dark-border">
             <span className="text-[9px] text-brand-muted uppercase font-mono font-bold block">Price Multiples (P/E)</span>
