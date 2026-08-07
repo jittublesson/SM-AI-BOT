@@ -369,10 +369,15 @@ class YFinanceService:
                 "metadata": {
                     "last_updated": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
                     "data_source": "Yahoo Finance API Live",
+                    "source": "Yahoo Finance API Live",
                     "reliability": "High",
+                    "reliability_rating": "High",
                     "market_status": "Open" if info.get("marketState") in ["REGULAR", "PRE", "POST"] else "Closed",
                     "exchange": info.get("exchange", "NSE" if ".NS" in ticker_upper else "BSE" if ".BO" in ticker_upper else "NASDAQ"),
-                    "currency": currency
+                    "currency": currency,
+                    "timezone": "Asia/Kolkata" if (".NS" in ticker_upper or ".BO" in ticker_upper) else "America/New_York",
+                    "data_quality": "98/100",
+                    "data_quality_score": "98/100"
                 }
             }
             
@@ -459,10 +464,15 @@ class YFinanceService:
                 "metadata": {
                     "last_updated": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
                     "data_source": "Yahoo Finance (Real-time Price Overlay)",
+                    "source": "Yahoo Finance (Real-time Price Overlay)",
                     "reliability": "Medium",
+                    "reliability_rating": "Medium",
                     "market_status": market_state,
                     "exchange": exchange,
-                    "currency": mock["info"]["currency"]
+                    "currency": mock["info"]["currency"],
+                    "timezone": "Asia/Kolkata" if (".NS" in ticker_upper or ".BO" in ticker_upper) else "America/New_York",
+                    "data_quality": "80/100",
+                    "data_quality_score": "80/100"
                 }
             }
             return res

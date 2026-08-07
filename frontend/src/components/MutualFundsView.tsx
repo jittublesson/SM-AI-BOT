@@ -66,6 +66,15 @@ export const MutualFundsView: React.FC<MutualFundsViewProps> = ({ targetCurrency
   const [showAiReport, setShowAiReport] = useState(false);
   const [aiReportLoading, setAiReportLoading] = useState(false);
 
+  // Advanced Mutual Funds States
+  const [navHistory, setNavHistory] = useState<any[]>([]);
+  const [rollingReturns, setRollingReturns] = useState<any>(null);
+  const [sipRollReturns, setSipRollReturns] = useState<any>(null);
+  const [lumpRollReturns, setLumpRollReturns] = useState<any>(null);
+  const [suitabilityReport, setSuitabilityReport] = useState<any>(null);
+  const [overlapTargetId, setOverlapTargetId] = useState<string>("");
+  const [overlapResult, setOverlapResult] = useState<any>(null);
+
   // Watchlist states
   const [watchlist, setWatchlist] = useState<any[]>([]);
   const [watchlistNotes, setWatchlistNotes] = useState("");
@@ -127,6 +136,23 @@ export const MutualFundsView: React.FC<MutualFundsViewProps> = ({ targetCurrency
           if (res.ok) {
             const json = await res.json();
             setSelectedFund(json);
+            
+            // Fetch extra analytics concurrently
+            const [navRes, rollRes, sipRes, lumpRes, suitRes] = await Promise.all([
+              fetch(`/api/v1/funds/nav_history/${selectedFundId}`),
+              fetch(`/api/v1/funds/rolling_returns/${selectedFundId}`),
+              fetch(`/api/v1/funds/rolling_sip_returns/${selectedFundId}`),
+              fetch(`/api/v1/funds/rolling_lumpsum_returns/${selectedFundId}`),
+              fetch(`/api/v1/funds/suitability/${selectedFundId}?risk_profile=moderate&horizon=5`)
+            ]);
+            
+            if (navRes.ok) setNavHistory(await navRes.json());
+            if (rollRes.ok) setRollingReturns(await rollRes.json());
+            if (sipRes.ok) setSipRollReturns(await sipRes.json());
+            if (lumpRes.ok) setLumpRollReturns(await lumpRes.json());
+            if (suitRes.ok) setSuitabilityReport(await suitRes.json());
+            setOverlapTargetId("");
+            setOverlapResult(null);
           }
         } catch (err) {
           console.error(err);
@@ -135,6 +161,13 @@ export const MutualFundsView: React.FC<MutualFundsViewProps> = ({ targetCurrency
       fetchDetail();
     } else {
       setSelectedFund(null);
+      setNavHistory([]);
+      setRollingReturns(null);
+      setSipRollReturns(null);
+      setLumpRollReturns(null);
+      setSuitabilityReport(null);
+      setOverlapTargetId("");
+      setOverlapResult(null);
     }
   }, [selectedFundId]);
 
@@ -153,6 +186,22 @@ export const MutualFundsView: React.FC<MutualFundsViewProps> = ({ targetCurrency
   useEffect(() => {
     fetchWatchlist();
   }, []);
+
+  const triggerOverlapCheck = async (targetId: string) => {
+    setOverlapTargetId(targetId);
+    if (!selectedFundId || !targetId) {
+      setOverlapResult(null);
+      return;
+    }
+    try {
+      const res = await fetch(`/api/v1/funds/overlap?fund_a=${selectedFundId}&fund_b=${targetId}`);
+      if (res.ok) {
+        setOverlapResult(await res.json());
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
 
   const handleAddToWatchlist = async (fund: Fund) => {
     try {
@@ -594,6 +643,199 @@ export const MutualFundsView: React.FC<MutualFundsViewProps> = ({ targetCurrency
                   </div>
                 </div>
               </div>
+
+              {/* Extra Analytics: NAV History, Rolling Returns & Overlap Analyzer */}
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                
+                {/* NAV History & Chart */}
+                <div className="lg:col-span-2 glass-card p-4 rounded-lg flex flex-col space-y-4">
+                  <h3 className="text-xs font-black uppercase text-brand-primary tracking-wider border-b border-light-border dark:border-dark-border pb-2">Historical NAV Trend (180 days)</h3>
+                  {navHistory.length > 0 ? (
+                    <div className="space-y-4">
+                      {/* Simple visual mini sparkline block */}
+                      <div className="h-36 w-full flex items-end justify-between gap-1 p-2 bg-black/5 dark:bg-white/5 border border-light-border dark:border-dark-border rounded-xl">
+                        {navHistory.filter((_, idx) => idx % 6 === 0).map((nh, i) => {
+                          const heightPct = Math.min(95, Math.max(10, ((nh.nav - selectedFund.nav * 0.8) / (selectedFund.nav * 0.4)) * 100));
+                          return (
+                            <div key={i} className="flex-1 flex flex-col items-center gap-1 group relative">
+                              <div className="w-full bg-brand-primary/40 dark:bg-brand-primary/60 group-hover:bg-brand-primary rounded transition-all" style={{ height: `${heightPct}px` }} />
+                              <span className="text-[7px] text-brand-muted hidden group-hover:block absolute bottom-12 bg-slate-800 text-white p-1 rounded font-mono">₹{nh.nav}</span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                      <div className="flex justify-between text-[9px] font-mono text-brand-muted">
+                        <span>{navHistory[0]?.date}</span>
+                        <span>Base Price Indexed</span>
+                        <span>{navHistory[navHistory.length-1]?.date}</span>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="h-36 flex items-center justify-center text-brand-muted text-xs font-mono">NAV statistics loading...</div>
+                  )}
+                </div>
+
+                {/* AI Suitability Report & Rating */}
+                <div className="glass-card p-4 rounded-lg flex flex-col space-y-4">
+                  <h3 className="text-xs font-black uppercase text-brand-primary tracking-wider border-b border-light-border dark:border-dark-border pb-2">AI Suitability audit</h3>
+                  {suitabilityReport ? (
+                    <div className="space-y-4 text-xs">
+                      <div className="flex justify-between items-center">
+                        <span className="text-brand-muted">Suitability Score</span>
+                        <span className={`font-black font-mono text-sm px-2 py-0.5 rounded ${suitabilityReport.suitable ? "bg-green-500/10 text-green-500" : "bg-red-500/10 text-red-500"}`}>
+                          {suitabilityReport.suitability_score}/100
+                        </span>
+                      </div>
+                      <div className="p-3 rounded-lg bg-black/5 dark:bg-white/5 border border-light-border dark:border-dark-border leading-relaxed text-[11px]">
+                        {suitabilityReport.reasoning}
+                      </div>
+                      <div className="grid grid-cols-2 gap-2 text-center text-[10px] font-mono">
+                        <div className="p-2 border border-light-border dark:border-dark-border rounded">
+                          <span className="text-brand-muted block text-[8px]">Cat Sharpe Avg</span>
+                          <span className="font-bold text-slate-800 dark:text-slate-200 mt-0.5 block">{suitabilityReport.category_average_sharpe}</span>
+                        </div>
+                        <div className="p-2 border border-light-border dark:border-dark-border rounded">
+                          <span className="text-brand-muted block text-[8px]">Cat Expense Avg</span>
+                          <span className="font-bold text-slate-800 dark:text-slate-200 mt-0.5 block">{suitabilityReport.category_average_expense}%</span>
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="flex-1 flex items-center justify-center text-brand-muted text-xs font-mono">Suitability analysis loading...</div>
+                  )}
+                </div>
+
+              </div>
+
+              {/* Rolling returns and Overlap Analysis Row */}
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                
+                {/* Rolling Returns Table */}
+                <div className="lg:col-span-1 glass-card p-4 rounded-lg flex flex-col space-y-3">
+                  <h3 className="text-xs font-black uppercase text-brand-primary tracking-wider border-b border-light-border dark:border-dark-border pb-2">Rolling Returns Profile</h3>
+                  {rollingReturns ? (
+                    <div className="overflow-x-auto text-[11px]">
+                      <table className="w-full text-left font-mono">
+                        <thead>
+                          <tr className="text-brand-muted border-b border-light-border dark:border-dark-border">
+                            <th className="py-1.5 font-sans">Span</th>
+                            <th className="py-1.5 text-center">Avg</th>
+                            <th className="py-1.5 text-right">Min/Max Range</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-light-border/40 dark:divide-dark-border/40">
+                          <tr>
+                            <td className="py-2 font-sans font-bold">1-Year Rolling</td>
+                            <td className="py-2 text-center text-brand-secondary font-bold">+{rollingReturns.rolling_1y.average}%</td>
+                            <td className="py-2 text-right text-brand-muted">{rollingReturns.rolling_1y.min}% to {rollingReturns.rolling_1y.max}%</td>
+                          </tr>
+                          <tr>
+                            <td className="py-2 font-sans font-bold">3-Year Rolling</td>
+                            <td className="py-2 text-center text-brand-secondary font-bold">+{rollingReturns.rolling_3y.average}%</td>
+                            <td className="py-2 text-right text-brand-muted">{rollingReturns.rolling_3y.min}% to {rollingReturns.rolling_3y.max}%</td>
+                          </tr>
+                          <tr>
+                            <td className="py-2 font-sans font-bold">5-Year Rolling</td>
+                            <td className="py-2 text-center text-brand-secondary font-bold">+{rollingReturns.rolling_5y.average}%</td>
+                            <td className="py-2 text-right text-brand-muted">{rollingReturns.rolling_5y.min}% to {rollingReturns.rolling_5y.max}%</td>
+                          </tr>
+                        </tbody>
+                      </table>
+                    </div>
+                  ) : (
+                    <div className="flex-1 flex items-center justify-center text-brand-muted text-xs font-mono">Rolling statistics loading...</div>
+                  )}
+                </div>
+
+                {/* Rolling SIP & Lumpsum returns */}
+                <div className="lg:col-span-1 glass-card p-4 rounded-lg flex flex-col space-y-3">
+                  <h3 className="text-xs font-black uppercase text-brand-primary tracking-wider border-b border-light-border dark:border-dark-border pb-2">Rolling SIP & Lumpsum CAGR</h3>
+                  {sipRollReturns && lumpRollReturns ? (
+                    <div className="space-y-3.5 text-xs font-mono">
+                      <div>
+                        <span className="text-[9px] uppercase font-sans text-brand-muted block">Rolling SIP Return CAGR</span>
+                        <div className="grid grid-cols-3 gap-2 mt-1.5 text-center">
+                          <div className="p-1.5 border border-light-border dark:border-dark-border rounded">
+                            <span className="text-[7.5px] block">1Y SIP</span>
+                            <span className="font-bold text-brand-secondary">+{sipRollReturns.sip_1y_cagr}%</span>
+                          </div>
+                          <div className="p-1.5 border border-light-border dark:border-dark-border rounded">
+                            <span className="text-[7.5px] block">3Y SIP</span>
+                            <span className="font-bold text-brand-secondary">+{sipRollReturns.sip_3y_cagr}%</span>
+                          </div>
+                          <div className="p-1.5 border border-light-border dark:border-dark-border rounded">
+                            <span className="text-[7.5px] block">5Y SIP</span>
+                            <span className="font-bold text-brand-secondary">+{sipRollReturns.sip_5y_cagr}%</span>
+                          </div>
+                        </div>
+                      </div>
+                      <div>
+                        <span className="text-[9px] uppercase font-sans text-brand-muted block">Rolling Lumpsum Return CAGR</span>
+                        <div className="grid grid-cols-3 gap-2 mt-1.5 text-center">
+                          <div className="p-1.5 border border-light-border dark:border-dark-border rounded">
+                            <span className="text-[7.5px] block">1Y Lump</span>
+                            <span className="font-bold text-brand-primary">+{lumpRollReturns.lumpsum_1y_cagr}%</span>
+                          </div>
+                          <div className="p-1.5 border border-light-border dark:border-dark-border rounded">
+                            <span className="text-[7.5px] block">3Y Lump</span>
+                            <span className="font-bold text-brand-primary">+{lumpRollReturns.lumpsum_3y_cagr}%</span>
+                          </div>
+                          <div className="p-1.5 border border-light-border dark:border-dark-border rounded">
+                            <span className="text-[7.5px] block">5Y Lump</span>
+                            <span className="font-bold text-brand-primary">+{lumpRollReturns.lumpsum_5y_cagr}%</span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="flex-1 flex items-center justify-center text-brand-muted text-xs font-mono">Rolling statistics loading...</div>
+                  )}
+                </div>
+
+                {/* Portfolio Holdings Overlap Analysis */}
+                <div className="lg:col-span-1 glass-card p-4 rounded-lg flex flex-col space-y-3">
+                  <h3 className="text-xs font-black uppercase text-brand-primary tracking-wider border-b border-light-border dark:border-dark-border pb-2">Underlying holdings Overlap Analysis</h3>
+                  <div className="space-y-3 text-xs">
+                    <div className="flex flex-col space-y-1">
+                      <span className="text-[9px] uppercase text-brand-muted">Select Fund to Compare Overlap</span>
+                      <select
+                        value={overlapTargetId}
+                        onChange={(e) => triggerOverlapCheck(e.target.value)}
+                        className="p-1.5 bg-black/5 dark:bg-white/5 border border-light-border dark:border-dark-border rounded text-xs focus:outline-none focus:border-brand-primary text-slate-800 dark:text-slate-200"
+                      >
+                        <option value="">-- Choose target fund --</option>
+                        {funds.filter(f => f.id !== selectedFundId).map(f => (
+                          <option key={f.id} value={f.id}>{f.name}</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {overlapResult && (
+                      <div className="space-y-3 font-mono">
+                        <div className="flex justify-between items-center p-2 rounded bg-brand-primary/10 border border-brand-primary/20 text-xs font-bold text-brand-primary">
+                          <span>Portfolio Overlap</span>
+                          <span>{overlapResult.overlap_percentage}%</span>
+                        </div>
+                        {overlapResult.mutual_holdings.length > 0 && (
+                          <div className="space-y-1.5">
+                            <span className="text-[9px] font-sans text-brand-muted block">Mutual stock holdings:</span>
+                            <div className="space-y-1 max-h-24 overflow-y-auto pr-1">
+                              {overlapResult.mutual_holdings.map((mh: any, idx: number) => (
+                                <div key={idx} className="flex justify-between text-[10px] p-1 bg-black/5 dark:bg-white/5 rounded border border-light-border/40 dark:border-dark-border/40">
+                                  <span className="font-sans text-slate-700 dark:text-slate-300">{mh.company}</span>
+                                  <span className="text-brand-secondary font-bold">{mh.overlap_pct}%</span>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+              </div>
+
             </div>
 
             {/* AI Report Sidebar overlay */}

@@ -555,3 +555,99 @@ class MutualFundService:
         results = [f for f in results if f["aum_crore"] >= min_aum]
         
         return results
+
+    @staticmethod
+    def get_fund_nav_history(fund_id: str) -> List[Dict[str, Any]]:
+        fund = MOCK_FUNDS.get(fund_id.lower().strip())
+        if not fund:
+            return []
+        base_nav = fund["nav"]
+        history = []
+        import numpy as np
+        np.random.seed(101)
+        # Generate 180 days of historical NAV values
+        navs = (base_nav * (1.0 + np.random.normal(0.0006, 0.012, 180).cumsum())).tolist()
+        import datetime
+        start = datetime.date.today() - datetime.timedelta(days=180)
+        for i, val in enumerate(navs):
+            d = start + datetime.timedelta(days=i)
+            history.append({"date": d.strftime("%Y-%m-%d"), "nav": round(val, 2)})
+        return history
+
+    @staticmethod
+    def get_rolling_returns(fund_id: str) -> Dict[str, Any]:
+        fund = MOCK_FUNDS.get(fund_id.lower().strip())
+        if not fund:
+            return {}
+        # Rolling returns summary: average, minimum, and maximum return limits
+        return {
+            "rolling_1y": {"average": 21.4, "max": 32.5, "min": 8.2},
+            "rolling_3y": {"average": 16.8, "max": 24.2, "min": 11.5},
+            "rolling_5y": {"average": 17.5, "max": 22.8, "min": 13.1}
+        }
+
+    @staticmethod
+    def get_rolling_sip_returns(fund_id: str) -> Dict[str, Any]:
+        return {
+            "sip_1y_cagr": 22.1,
+            "sip_3y_cagr": 18.5,
+            "sip_5y_cagr": 16.9
+        }
+
+    @staticmethod
+    def get_rolling_lumpsum_returns(fund_id: str) -> Dict[str, Any]:
+        return {
+            "lumpsum_1y_cagr": 23.5,
+            "lumpsum_3y_cagr": 17.2,
+            "lumpsum_5y_cagr": 16.5
+        }
+
+    @staticmethod
+    def get_fund_overlap_analysis(fund_id_a: str, fund_id_b: str) -> Dict[str, Any]:
+        fund_a = MOCK_FUNDS.get(fund_id_a.lower().strip())
+        fund_b = MOCK_FUNDS.get(fund_id_b.lower().strip())
+        if not fund_a or not fund_b:
+            return {"overlap_percentage": 0.0, "mutual_holdings": []}
+            
+        holdings_a = {h["company"]: h["percentage"] for h in fund_a.get("top_holdings", [])}
+        holdings_b = {h["company"]: h["percentage"] for h in fund_b.get("top_holdings", [])}
+        
+        overlap_sum = 0.0
+        mutual = []
+        for company in holdings_a:
+            if company in holdings_b:
+                val = min(holdings_a[company], holdings_b[company])
+                overlap_sum += val
+                mutual.append({"company": company, "overlap_pct": val})
+                
+        return {
+            "overlap_percentage": round(overlap_sum, 2),
+            "mutual_holdings": mutual
+        }
+
+    @staticmethod
+    def get_ai_suitability_report(fund_id: str, risk_profile: str, horizon: int) -> Dict[str, Any]:
+        fund = MOCK_FUNDS.get(fund_id.lower().strip())
+        if not fund:
+            return {"suitable": False, "analysis": "Fund not identified."}
+            
+        risk_lower = risk_profile.lower()
+        suitable = True
+        reason = "The fund aligns perfectly with your parameters."
+        
+        if fund["risk_level"].lower() == "very high" and "conservative" in risk_lower:
+            suitable = False
+            reason = "Warning: Very High risk fund is unsuitable for conservative portfolio mandates."
+        elif horizon < 3:
+            suitable = False
+            reason = "Warning: Equity-heavy fund structure requires a minimum 3-5 year investment horizon."
+
+        return {
+            "fund_id": fund_id,
+            "suitable": suitable,
+            "reasoning": reason,
+            "category_average_sharpe": 1.18,
+            "category_average_expense": 0.95,
+            "fund_sharpe": fund["research"]["risk_ratios"]["sharpe"],
+            "suitability_score": 85 if suitable else 40
+        }

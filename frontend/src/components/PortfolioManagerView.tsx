@@ -26,11 +26,12 @@ interface PortfolioManagerViewProps {
 export const PortfolioManagerView: React.FC<PortfolioManagerViewProps> = ({ targetCurrency = "INR" }) => {
   const [holdings, setHoldings] = useState<Holding[]>([]);
   const [loading, setLoading] = useState(true);
+  const [analytics, setAnalytics] = useState<any>(null);
   const [showAddModal, setShowAddModal] = useState(false);
   const [addingHolding, setAddingHolding] = useState(false);
 
   // New Holding Form State
-  const [form, setForm] = useState({
+  const [form, setForm] = useState<Omit<Holding, "id">>({
     asset_class: "Stock",
     symbol: "",
     name: "",
@@ -43,16 +44,26 @@ export const PortfolioManagerView: React.FC<PortfolioManagerViewProps> = ({ targ
     volatility: 15.0
   });
 
+  const fetchAnalytics = async () => {
+    try {
+      const res = await fetch("/api/v1/portfolio/analytics");
+      if (res.ok) {
+        const data = await res.json();
+        setAnalytics(data);
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
   const fetchHoldings = async () => {
     setLoading(true);
     try {
-      const res = await fetch("/api/portfolio/holdings"); // Wait, endpoints prefix is /api/v1/...
-      // Ah! In App.tsx: fetch("/api/v1/bookmarks")
-      // Yes, the prefix is "/api/v1"
       const response = await fetch("/api/v1/portfolio/holdings");
       if (response.ok) {
         const data = await response.json();
         setHoldings(data);
+        fetchAnalytics();
       }
     } catch (err) {
       console.error(err);
@@ -405,6 +416,86 @@ export const PortfolioManagerView: React.FC<PortfolioManagerViewProps> = ({ targ
               })}
             </div>
           </div>
+
+          {/* Advanced Risk Ratios & Capital Ratios */}
+          {analytics && (
+            <div className="space-y-3 pt-2">
+              <h3 className="text-xs font-black uppercase text-brand-primary tracking-wider border-b border-light-border dark:border-dark-border pb-2 flex items-center gap-1.5">
+                <ShieldAlert className="w-4 h-4 text-brand-primary" />
+                Advanced Risk & Capital Ratios
+              </h3>
+              <div className="grid grid-cols-2 gap-3 text-center text-xs font-mono">
+                <div className="p-2.5 bg-black/5 dark:bg-white/5 border border-light-border dark:border-dark-border rounded-xl">
+                  <span className="text-[8px] text-brand-muted uppercase block leading-tight">Sharpe Ratio</span>
+                  <span className="text-xs font-bold text-slate-800 dark:text-slate-100 mt-1 block">{analytics.sharpe_ratio}</span>
+                </div>
+                <div className="p-2.5 bg-black/5 dark:bg-white/5 border border-light-border dark:border-dark-border rounded-xl">
+                  <span className="text-[8px] text-brand-muted uppercase block leading-tight">Sortino Ratio</span>
+                  <span className="text-xs font-bold text-slate-800 dark:text-slate-100 mt-1 block">{analytics.sortino_ratio}</span>
+                </div>
+                <div className="p-2.5 bg-black/5 dark:bg-white/5 border border-light-border dark:border-dark-border rounded-xl">
+                  <span className="text-[8px] text-brand-muted uppercase block leading-tight">Treynor Ratio</span>
+                  <span className="text-xs font-bold text-slate-800 dark:text-slate-100 mt-1 block">{analytics.treynor_ratio}</span>
+                </div>
+                <div className="p-2.5 bg-black/5 dark:bg-white/5 border border-light-border dark:border-dark-border rounded-xl">
+                  <span className="text-[8px] text-brand-muted uppercase block leading-tight">Beta (Market Corr)</span>
+                  <span className="text-xs font-bold text-slate-800 dark:text-slate-100 mt-1 block">{analytics.beta}</span>
+                </div>
+                <div className="p-2.5 bg-black/5 dark:bg-white/5 border border-light-border dark:border-dark-border rounded-xl col-span-2">
+                  <span className="text-[8px] text-brand-muted uppercase block leading-tight">Max Drawdown (Est)</span>
+                  <span className="text-xs font-bold text-brand-danger mt-1 block">-{analytics.max_drawdown}%</span>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Tax Estimation & Income Forecast */}
+          {analytics && (
+            <div className="space-y-3 pt-2">
+              <h3 className="text-xs font-black uppercase text-brand-primary tracking-wider border-b border-light-border dark:border-dark-border pb-2 flex items-center gap-1.5">
+                <Landmark className="w-4 h-4 text-brand-secondary" />
+                Capital Gains Tax & Forecast
+              </h3>
+              <div className="space-y-2 text-xs">
+                <div className="flex justify-between items-center p-2 bg-black/5 dark:bg-white/5 rounded border border-light-border dark:border-dark-border">
+                  <span>Dividend Yield (1.5% Est)</span>
+                  <span className="font-mono font-bold text-green-500">{formatPrice(analytics.dividend_forecast, "INR", targetCurrency)}</span>
+                </div>
+                <div className="flex justify-between items-center p-2 bg-black/5 dark:bg-white/5 rounded border border-light-border dark:border-dark-border">
+                  <div>
+                    <span className="block font-bold">STCG Est (20% rate)</span>
+                    <span className="text-[8px] text-brand-muted font-normal block">Short Term Gains Tax</span>
+                  </div>
+                  <span className="font-mono font-bold text-brand-danger">{formatPrice(analytics.tax_estimation.stcg, "INR", targetCurrency)}</span>
+                </div>
+                <div className="flex justify-between items-center p-2 bg-black/5 dark:bg-white/5 rounded border border-light-border dark:border-dark-border">
+                  <div>
+                    <span className="block font-bold">LTCG Est (12.5% rate)</span>
+                    <span className="text-[8px] text-brand-muted font-normal block">Exempting first ₹1.25L</span>
+                  </div>
+                  <span className="font-mono font-bold text-brand-danger">{formatPrice(analytics.tax_estimation.ltcg, "INR", targetCurrency)}</span>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* AI Rebalancing Suggestions */}
+          {analytics && (
+            <div className="space-y-3 pt-2">
+              <h3 className="text-xs font-black uppercase text-brand-primary tracking-wider border-b border-light-border dark:border-dark-border pb-2 flex items-center gap-1.5">
+                <Cpu className="w-4 h-4 text-brand-warning animate-pulse" />
+                AI Rebalancing Advisor
+              </h3>
+              <div className="space-y-2">
+                {analytics.rebalancing_suggestions.map((sug: string, idx: number) => (
+                  <div key={idx} className="p-2.5 rounded bg-brand-warning/10 border border-brand-warning/20 text-[11px] leading-relaxed text-slate-800 dark:text-slate-200">
+                    {sug}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
         </div>
       </div>
 

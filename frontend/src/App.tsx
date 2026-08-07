@@ -44,6 +44,7 @@ export default function App() {
   const [paletteResults, setPaletteResults] = useState<any>({
     stocks: [],
     funds: [],
+    etfs: [],
     reports: [],
     news: [],
     academy: []
@@ -83,6 +84,12 @@ export default function App() {
       }
       if (paletteResults.funds) {
         paletteResults.funds.forEach((f: any) => flat.push({ type: "fund", id: f.id, name: f.name, extra: f.category }));
+      }
+      if (paletteResults.etfs) {
+        paletteResults.etfs.forEach((e: any) => flat.push({ type: "etf", id: e.id, name: e.name, extra: e.category }));
+      }
+      if (paletteResults.news) {
+        paletteResults.news.forEach((n: any) => flat.push({ type: "news", id: n.slug, name: n.title, extra: "News Feed" }));
       }
       if (paletteResults.reports) {
         paletteResults.reports.forEach((r: any) => flat.push({ type: "report", id: r.ticker, name: r.type }));
@@ -266,6 +273,17 @@ export default function App() {
         const fundRes = await fetch(`/api/v1/funds/search?q=${val}`);
         const funds = fundRes.ok ? await fundRes.json() : [];
 
+        const etfs = funds.filter((f: any) => 
+          f.name.toLowerCase().includes("etf") || 
+          f.category.toLowerCase().includes("etf") || 
+          f.id.toLowerCase().includes("etf")
+        );
+        const actualFunds = funds.filter((f: any) => 
+          !f.name.toLowerCase().includes("etf") && 
+          !f.category.toLowerCase().includes("etf") && 
+          !f.id.toLowerCase().includes("etf")
+        );
+
         // Simulated filtering for news and reports
         const allReports = [
           { ticker: "AAPL", type: "Annual Report Highlights" },
@@ -274,8 +292,8 @@ export default function App() {
         ].filter(r => r.ticker.toLowerCase().includes(val.toLowerCase()) || r.type.toLowerCase().includes(val.toLowerCase()));
 
         const allNews = [
-          { title: "Inflation Rate cools down to 4.2% in domestic markets", slug: "market-cooling" },
-          { title: "AI hardware investments reach record scaling volumes", slug: "ai-scaling" }
+          { title: "Inflation Rate cools down to 4.2% in India", slug: "market-cooling" },
+          { title: "AI hardware investments reach record scaling volumes globally", slug: "ai-scaling" }
         ].filter(n => n.title.toLowerCase().includes(val.toLowerCase()));
 
         const academyLessons = [
@@ -285,7 +303,8 @@ export default function App() {
 
         setPaletteResults({
           stocks: stocks.slice(0, 4),
-          funds: funds.slice(0, 4),
+          funds: actualFunds.slice(0, 4),
+          etfs: etfs.slice(0, 4),
           reports: allReports,
           news: allNews,
           academy: academyLessons
@@ -294,7 +313,7 @@ export default function App() {
         console.error(err);
       }
     } else {
-      setPaletteResults({ stocks: [], funds: [], reports: [], news: [], academy: [] });
+      setPaletteResults({ stocks: [], funds: [], etfs: [], reports: [], news: [], academy: [] });
     }
   };
 
@@ -827,6 +846,66 @@ export default function App() {
                                       <div><strong className="font-mono mr-2">MF</strong> {f.name}</div>
                                     </div>
                                     <span className="text-[9px] text-brand-muted uppercase font-mono">{f.category}</span>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* ETFs Category */}
+                        {paletteResults.etfs && paletteResults.etfs.length > 0 && (
+                          <div className="space-y-1.5 mt-3">
+                            <span className="text-[8px] font-black text-brand-secondary tracking-widest uppercase block">Exchange Traded Funds (ETFs)</span>
+                            <div className="space-y-1">
+                              {paletteResults.etfs.map((e: any, idx: number) => {
+                                globalIdx++;
+                                const isActive = activeSearchIndex === globalIdx;
+                                return (
+                                  <div
+                                    key={idx}
+                                    onClick={() => handleSelectSearchResult("fund", e.id)}
+                                    className={`p-2 rounded text-xs cursor-pointer flex justify-between items-center transition-colors border ${
+                                      isActive
+                                        ? "bg-brand-primary/10 border-brand-primary/20 dark:bg-brand-primary/20 text-brand-primary font-bold"
+                                        : "bg-transparent border-transparent hover:bg-black/5 dark:hover:bg-white/5 text-slate-800 dark:text-slate-200"
+                                    }`}
+                                  >
+                                    <div className="flex items-center gap-1.5">
+                                      <Activity className="w-3.5 h-3.5 text-brand-primary" />
+                                      <div><strong className="font-mono mr-2">ETF</strong> {e.name}</div>
+                                    </div>
+                                    <span className="text-[9px] text-brand-muted uppercase font-mono">{e.category}</span>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* News Feed Category */}
+                        {paletteResults.news && paletteResults.news.length > 0 && (
+                          <div className="space-y-1.5 mt-3">
+                            <span className="text-[8px] font-black text-brand-warning tracking-widest uppercase block">Market Intelligence News</span>
+                            <div className="space-y-1">
+                              {paletteResults.news.map((n: any, idx: number) => {
+                                globalIdx++;
+                                const isActive = activeSearchIndex === globalIdx;
+                                return (
+                                  <div
+                                    key={idx}
+                                    onClick={() => handleSelectSearchResult("news" as any, n.slug)}
+                                    className={`p-2 rounded text-xs cursor-pointer flex justify-between items-center transition-colors border ${
+                                      isActive
+                                        ? "bg-brand-warning/10 border-brand-warning/20 dark:bg-brand-warning/20 text-brand-warning font-bold"
+                                        : "bg-transparent border-transparent hover:bg-black/5 dark:hover:bg-white/5 text-slate-800 dark:text-slate-200"
+                                    }`}
+                                  >
+                                    <div className="flex items-center gap-1.5">
+                                      <Globe className="w-3.5 h-3.5 text-brand-warning" />
+                                      <div>{n.title}</div>
+                                    </div>
+                                    <span className="text-[9px] text-brand-muted uppercase font-mono">News</span>
                                   </div>
                                 );
                               })}

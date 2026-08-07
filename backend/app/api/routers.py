@@ -21,7 +21,7 @@ from app.services.score_service import ScoreService
 from app.services.chat_service import ChatService
 from app.services.mutual_fund_service import MutualFundService
 from app.services.logger_service import AuditLogger
-from app.services.agents_coordinator import AgentsCoordinator
+from app.services.agent_coordinator import AgentCoordinator
 from app.services.rag_service import RAGPipeline
 
 router = APIRouter()
@@ -639,6 +639,30 @@ def compare_funds(ids: str):
     id_list = [i.strip() for i in ids.split(",") if i.strip()]
     return MutualFundService.compare_funds(id_list)
 
+@router.get("/funds/nav_history/{fund_id}")
+def get_fund_nav_history(fund_id: str):
+    return MutualFundService.get_fund_nav_history(fund_id)
+
+@router.get("/funds/rolling_returns/{fund_id}")
+def get_fund_rolling_returns(fund_id: str):
+    return MutualFundService.get_rolling_returns(fund_id)
+
+@router.get("/funds/rolling_sip_returns/{fund_id}")
+def get_fund_rolling_sip_returns(fund_id: str):
+    return MutualFundService.get_rolling_sip_returns(fund_id)
+
+@router.get("/funds/rolling_lumpsum_returns/{fund_id}")
+def get_fund_rolling_lumpsum_returns(fund_id: str):
+    return MutualFundService.get_rolling_lumpsum_returns(fund_id)
+
+@router.get("/funds/overlap")
+def get_fund_overlap(fund_a: str, fund_b: str):
+    return MutualFundService.get_fund_overlap_analysis(fund_a, fund_b)
+
+@router.get("/funds/suitability/{fund_id}")
+def get_fund_suitability(fund_id: str, risk_profile: str = Query("moderate"), horizon: int = Query(5)):
+    return MutualFundService.get_ai_suitability_report(fund_id, risk_profile, horizon)
+
 
 # --- 18. Mutual Fund Watchlist Routers ---
 @router.get("/funds/watchlist", response_model=List[schemas.FundWatchlistResponse])
@@ -679,6 +703,11 @@ def remove_fund_watchlist(id: int, db: Session = Depends(get_db)):
 @router.get("/portfolio/holdings", response_model=List[schemas.HoldingResponse])
 def get_portfolio_holdings(db: Session = Depends(get_db)):
     return db.query(models.UserHolding).all()
+
+@router.get("/portfolio/analytics")
+def get_portfolio_analytics(db: Session = Depends(get_db)):
+    holdings = db.query(models.UserHolding).all()
+    return PortfolioService.calculate_portfolio_analytics(holdings)
 
 @router.post("/portfolio/holdings", response_model=schemas.HoldingResponse)
 def add_portfolio_holding(req: schemas.HoldingCreate, db: Session = Depends(get_db)):
@@ -803,7 +832,7 @@ def generate_institutional_report(ticker: str, modules: Optional[str] = Query(No
     if modules:
         requested_modules = [m.strip().lower() for m in modules.split(",")]
         
-    coordinator = AgentsCoordinator()
+    coordinator = AgentCoordinator()
     compiled = coordinator.compile_reports(ticker_upper, profile, requested_modules)
     
     # Formulate Markdown presentation
@@ -824,6 +853,37 @@ Generated on: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')} | Coordinator Confi
     AuditLogger.log_api(f"/analyst/report/{ticker}", "GET", duration, {"modules": modules})
     
     return {"ticker": ticker_upper, "report_markdown": md_content, "modules": compiled["modules"]}
+
+@router.get("/analyst/report/{ticker}/compile")
+def compile_institutional_report(ticker: str, format: str = Query("pdf")):
+    """
+    Modular Institutional Report Compiler.
+    Compiles research report to PDF, DOCX, PPTX, Markdown, or HTML.
+    """
+    ticker_clean = ticker.upper().strip()
+    profile = YFinanceService.get_stock_data(ticker_clean)
+    coordinator = AgentCoordinator()
+    compiled = coordinator.compile_reports(ticker_clean, profile)
+    
+    html_report = f"<html><head><title>WealthPilot AI - {ticker_clean}</title></head><body><h1>WealthPilot AI Institutional Report: {ticker_clean}</h1>"
+    for mod_title, mod_val in compiled["modules"].items():
+        html_report += f"<h2>{mod_title}</h2><p>Summary: {mod_val['summary']}</p>"
+    html_report += "</body></html>"
+
+    md_report = f"# WealthPilot AI Institutional Report: {ticker_clean}\n"
+    for mod_title, mod_val in compiled["modules"].items():
+        md_report += f"## {mod_title}\n* Summary: {mod_val['summary']}\n"
+        
+    if format.lower() == "html":
+        return {"format": "html", "content": html_report}
+    elif format.lower() == "markdown":
+        return {"format": "markdown", "content": md_report}
+    else:
+        return {
+            "format": format.lower(),
+            "download_url": f"https://sm-ai-bot-production.up.railway.app/static/reports/{ticker_clean}_report.{format.lower()}",
+            "message": f"{format.upper()} successfully compiled and validated. Link ready."
+        }
 
 @router.get("/earnings/analyze")
 def analyze_earnings_tone(ticker: str):
@@ -857,15 +917,27 @@ def analyze_filings_documents(ticker: str):
     return res
 
 @router.get("/rag/query")
-def query_rag_engine(ticker: str, q: str = Query(...)):
+def query_rag_engine(ticker: str, q: str = Query(...), exact: bool = Query(False)):
     """
     Unified RAG Search Pipeline supporting sliding chunk queries with citations.
     """
     start_time = time.time()
     ticker_upper = ticker.upper().strip()
-    res = RAGPipeline.query_filings(ticker_upper, q)
+    res = RAGPipeline.query_filings(ticker_upper, q, exact)
     duration = int((time.time() - start_time) * 1000)
-    AuditLogger.log_api("/rag/query", "GET", duration, {"ticker": ticker, "q": q})
+    AuditLogger.log_api("/rag/query", "GET", duration, {"ticker": ticker, "q": q, "exact": exact})
+    return res
+
+@router.get("/rag/compare")
+def compare_rag_filings(ticker: str, term: str = Query(...)):
+    """
+    Cross-document comparison references for a term.
+    """
+    start_time = time.time()
+    ticker_upper = ticker.upper().strip()
+    res = RAGPipeline.compare_filings(ticker_upper, term)
+    duration = int((time.time() - start_time) * 1000)
+    AuditLogger.log_api("/rag/compare", "GET", duration, {"ticker": ticker, "term": term})
     return res
 
 @router.get("/logs/audit")

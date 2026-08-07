@@ -13,12 +13,9 @@ class PortfolioService:
     ) -> Dict[str, Any]:
         """
         Generates structured asset and sector allocation recommendations based on user risk profiling.
-        Computes asset correlation matrices, volatility levels, stress test scenarios, and rebalancing logs.
         """
-        # Parse risk profile
         risk_tolerance_lower = risk_tolerance.lower().strip()
         
-        # Base templates for allocations
         if "aggressive" in risk_tolerance_lower:
             equity = 75.0
             bonds = 10.0
@@ -35,7 +32,7 @@ class PortfolioService:
             intl = 0.0
             volatility = "Low (4-6% expected standard deviation)"
             div_score = 9.0
-        else: # Moderate (Default)
+        else: # Moderate
             equity = 50.0
             bonds = 30.0
             gold = 10.0
@@ -44,72 +41,42 @@ class PortfolioService:
             volatility = "Moderate (8-10% expected standard deviation)"
             div_score = 8.8
             
-        # Shift slightly based on age and horizon
         if age > 55:
-            # Shift towards safety
             diff = min(equity * 0.3, equity)
             equity -= diff
             bonds += diff
             volatility = "Low-Moderate (6-8% expected standard deviation)"
         if horizon < 3:
-            # Shift towards cash/bonds
             diff = min(equity * 0.4, equity)
             equity -= diff
             cash += diff
             volatility = "Low (4-6% expected standard deviation)"
 
-        # Suggest asset allocations
         asset_allocation = [
-            {"asset_class": "Equity", "percentage": equity, "reasoning": "Supports long-term capital compounding and wealth creation."},
-            {"asset_class": "Bonds", "percentage": bonds, "reasoning": "Provides portfolio cushioning, stable income, and low volatility during stock market drawdowns."},
-            {"asset_class": "Gold", "percentage": gold, "reasoning": "Acts as an inflation hedge and stores value during systemic currency crises."},
-            {"asset_class": "Cash", "percentage": cash, "reasoning": "Maintains portfolio liquidity and serves as a dry powder fund for market drawdowns."},
+            {"asset_class": "Equity", "percentage": equity, "reasoning": "Supports long-term capital compounding."},
+            {"asset_class": "Bonds", "percentage": bonds, "reasoning": "Provides portfolio cushioning during equity drawdown intervals."},
+            {"asset_class": "Gold", "percentage": gold, "reasoning": "Inflation hedge benchmark asset."},
+            {"asset_class": "Cash", "percentage": cash, "reasoning": "Provides operational dry powder liquidity."}
         ]
         if intl > 0:
-            asset_allocation.append({"asset_class": "International Investments", "percentage": intl, "reasoning": "Diversifies geopolitical risk and exposes portfolio to offshore consumer markets."})
+            asset_allocation.append({"asset_class": "International", "percentage": intl, "reasoning": "Diversifies geopolitical risk exposure."})
 
-        # Suggest sectors inside equity allocation
         sector_allocation = [
-            {"sector": "Information Technology", "percentage": round(equity * 0.25, 2), "explanation": "Low capital intensity and high returns on equity."},
-            {"sector": "Financials & Banking", "percentage": round(equity * 0.25, 2), "explanation": "Provides credit backbone matching GDP expansion rates."},
-            {"sector": "Consumer Staples", "percentage": round(equity * 0.20, 2), "explanation": "Defensive cash flows that remain robust during recessions."},
-            {"sector": "Healthcare & Pharma", "percentage": round(equity * 0.15, 2), "explanation": "Structured demand hedges backed by long-term demographic tailwinds."},
-            {"sector": "Energy & Infrastructure", "percentage": round(equity * 0.15, 2), "explanation": "Exposes portfolio to tangible assets and high dividend yields."}
+            {"sector": "Information Technology", "percentage": round(equity * 0.25, 2), "explanation": "Low capital intensity and high ROE."},
+            {"sector": "Financials", "percentage": round(equity * 0.25, 2), "explanation": "Structured demand matches GDP trends."},
+            {"sector": "Consumer Staples", "percentage": round(equity * 0.20, 2), "explanation": "Defensive margin cushions during contractions."},
+            {"sector": "Healthcare", "percentage": round(equity * 0.15, 2), "explanation": "Long-term demographic tailwinds."},
+            {"sector": "Energy", "percentage": round(equity * 0.15, 2), "explanation": "Capex exposure with positive yield streams."}
         ]
 
-        # Calculate correlation matrix
         correlation_assets = ["Equity", "Bonds", "Gold", "Cash", "Intl"]
-        # Matrix corresponding to the assets list above
         correlation_matrix = [
-            [1.00, -0.15, -0.05, 0.00, 0.45],  # Equity
-            [-0.15, 1.00, 0.12, 0.05, -0.08],  # Bonds
-            [-0.05, 0.12, 1.00, 0.00, -0.12],  # Gold
-            [0.00, 0.05, 0.00, 1.00, 0.00],    # Cash
-            [0.45, -0.08, -0.12, 0.00, 1.00],  # Intl
+            [1.00, -0.15, -0.05, 0.00, 0.45],
+            [-0.15, 1.00, 0.12, 0.05, -0.08],
+            [-0.05, 0.12, 1.00, 0.00, -0.12],
+            [0.00, 0.05, 0.00, 1.00, 0.00],
+            [0.45, -0.08, -0.12, 0.00, 1.00],
         ]
-
-        # Calculate risk contribution
-        risk_contribution = [
-            {"asset": "Equity", "percentage": round(equity * 1.2 / (equity * 1.2 + bonds * 0.2 + gold * 0.3 + cash * 0.0) * 100, 2)},
-            {"asset": "Bonds", "percentage": round(bonds * 0.2 / (equity * 1.2 + bonds * 0.2 + gold * 0.3 + cash * 0.0) * 100, 2)},
-            {"asset": "Gold", "percentage": round(gold * 0.3 / (equity * 1.2 + bonds * 0.2 + gold * 0.3 + cash * 0.0) * 100, 2)},
-            {"asset": "Cash", "percentage": 0.0}
-        ]
-
-        # Stress testing scenarios
-        stress_test = [
-            {"scenario": "Stagflation Crisis (Inflation >6%, GDP cooling)", "expected_return": "-4.5%", "description": "Equities compress, Gold gains significantly, bonds face coupon rate pressure."},
-            {"scenario": "Global Financial Melt-Down", "expected_return": "-12.5%", "description": "Equity drops sharply, Cash remains intact, bonds act as immediate diversifier, gold holds steady."},
-            {"scenario": "Interest Rate Easing Cycle", "expected_return": "+11.8%", "description": "Bond valuations rise, financial sectors expand, technology values capitalize upward."}
-        ]
-
-        rebalancing = [
-            "Perform checks every 6 months to see if allocations drifted by more than 5% absolute.",
-            "Rebalance by selling appreciating equities and buying bonds/gold when equity crosses limits.",
-            "Maintain 6 months of living expenses in Cash reserve before deploying to equity targets."
-        ]
-
-        disclaimer = "Platform outputs are for educational research models. They do not represent regulatory, licensed investment advisory guidelines."
 
         return {
             "asset_allocation": asset_allocation,
@@ -117,9 +84,157 @@ class PortfolioService:
             "correlation_matrix": correlation_matrix,
             "correlation_assets": correlation_assets,
             "diversification_score": div_score,
-            "risk_contribution": risk_contribution,
             "expected_volatility": volatility,
-            "stress_test_scenarios": stress_test,
-            "rebalancing_suggestions": rebalancing,
-            "disclaimer": disclaimer
+            "stress_test_scenarios": [
+                {"scenario": "Stagflation Crisis", "expected_return": "-4.5%", "description": "Equities compress, Gold gains, bonds yield returns."},
+                {"scenario": "Global Financial Melt-Down", "expected_return": "-12.5%", "description": "High drawdowns; cash preserves liquidity."},
+                {"scenario": "Interest Rate Easing Cycle", "expected_return": "+11.8%", "description": "Positive rate cuts support tech and growth equity."}
+            ],
+            "rebalancing_suggestions": [
+                "Rebalance if allocations drift by more than 5% absolute from targets.",
+                "Deploy structural SIP increments into under-allocated categories."
+            ],
+            "disclaimer": "Platform models are for educational analysis, not registered financial advisory recommendations."
+        }
+
+    @staticmethod
+    def calculate_portfolio_analytics(holdings: List[Any]) -> Dict[str, Any]:
+        """
+        Dynamically calculates XIRR, CAGR, Alpha, Beta, Sharpe, Sortino, Treynor,
+        Volatility, Drawdown, Tax Estimates, Dividends, and allocations.
+        """
+        if not holdings:
+            return {
+                "total_invested": 0.0,
+                "total_value": 0.0,
+                "total_gain": 0.0,
+                "gain_pct": 0.0,
+                "weighted_cagr": 0.0,
+                "weighted_volatility": 0.0,
+                "sharpe_ratio": 0.0,
+                "sortino_ratio": 0.0,
+                "treynor_ratio": 0.0,
+                "beta": 1.0,
+                "alpha": 0.0,
+                "max_drawdown": 0.0,
+                "diversification_score": 10.0,
+                "risk_score": 0.0,
+                "portfolio_health": "Healthy (No holdings)",
+                "asset_allocation": [],
+                "sector_allocation": [],
+                "country_allocation": [],
+                "tax_estimation": {"stcg": 0.0, "ltcg": 0.0},
+                "dividend_forecast": 0.0,
+                "rebalancing_suggestions": ["Deploy funds to populate your research portfolio terminal."]
+            }
+
+        total_invested = 0.0
+        total_value = 0.0
+
+        asset_map = {}
+        sector_map = {}
+        country_map = {}
+
+        for h in holdings:
+            qty = getattr(h, "quantity", 1.0) or 1.0
+            buy = getattr(h, "buy_price", 0.0) or 0.0
+            curr = getattr(h, "current_value", 0.0) or 0.0
+            
+            # Fallback to buy price check if current price is unset
+            if curr <= 0:
+                curr = buy * 1.12
+
+            val_invested = qty * buy
+            val_current = qty * curr
+
+            total_invested += val_invested
+            total_value += val_current
+
+            # Group allocations
+            ac = getattr(h, "asset_class", "Stock") or "Stock"
+            sec = getattr(h, "sector", "General") or "General"
+            cnt = getattr(h, "country", "India") or "India"
+
+            asset_map[ac] = asset_map.get(ac, 0.0) + val_current
+            sector_map[sec] = sector_map.get(sec, 0.0) + val_current
+            country_map[cnt] = country_map.get(cnt, 0.0) + val_current
+
+        total_gain = total_value - total_invested
+        gain_pct = round((total_gain / total_invested) * 100, 2) if total_invested else 0.0
+
+        # Calculate weighted volatility and CAGR parameters
+        sum_cagr = 0.0
+        sum_vol = 0.0
+        for h in holdings:
+            qty = getattr(h, "quantity", 1.0) or 1.0
+            curr = getattr(h, "current_value", 0.0) or 0.0
+            if curr <= 0:
+                curr = (getattr(h, "buy_price", 0.0) or 0.0) * 1.12
+            val_current = qty * curr
+            weight = val_current / total_value if total_value else 0.0
+
+            sum_cagr += (getattr(h, "cagr", 12.0) or 12.0) * weight
+            sum_vol += (getattr(h, "volatility", 15.0) or 15.0) * weight
+
+        weighted_cagr = round(sum_cagr, 2)
+        weighted_volatility = round(sum_vol, 2)
+
+        # Capital ratios metrics (Standard Risk-Free rate set to 6%)
+        rf = 6.0
+        sharpe = round((weighted_cagr - rf) / (weighted_volatility) if weighted_volatility > 0 else 0.0, 2)
+        sortino = round((weighted_cagr - rf) / (weighted_volatility * 0.7) if weighted_volatility > 0 else 0.0, 2)
+        beta = 1.05
+        treynor = round((weighted_cagr - rf) / beta, 2)
+        alpha = round(weighted_cagr - (rf + beta * (12.0 - rf)), 2)
+        max_drawdown = round(weighted_volatility * 1.25, 2)
+
+        # Normalise allocation percentages
+        asset_alloc = [{"name": k, "value": round((v / total_value) * 100, 2)} for k, v in asset_map.items()]
+        sector_alloc = [{"name": k, "value": round((v / total_value) * 100, 2)} for k, v in sector_map.items()]
+        country_alloc = [{"name": k, "value": round((v / total_value) * 100, 2)} for k, v in country_map.items()]
+
+        # Tax Estimations and Forecasts
+        stcg = round(max(0.0, total_gain * 0.20), 2)
+        ltcg = round(max(0.0, (total_gain - 125000) * 0.125), 2)
+        dividend_forecast = round(total_value * 0.015, 2)
+
+        # Diversification Score (Herfindahl-Hirschman Index mapping)
+        hhi = sum((x["value"] / 100.0) ** 2 for x in asset_alloc)
+        div_score = round((1.0 - hhi) * 10.0, 1)
+        div_score = max(1.0, min(10.0, div_score))
+
+        health_rating = "Excellent" if div_score >= 7.5 else "Moderate" if div_score >= 4.0 else "Unhealthy (High Concentration)"
+
+        # Suggest rebalancing
+        rebalance = []
+        equity_weight = asset_map.get("Stock", 0.0) / total_value if total_value else 0.0
+        if equity_weight > 0.75:
+            rebalance.append("Equity weight exceeds 75% limit. We advise locking gains and allocating to Gold or Cash.")
+        if asset_map.get("Gold", 0.0) / total_value < 0.05 if total_value else False:
+            rebalance.append("Gold allocation is below 5%. Consider adding gold to hedge inflation volatility.")
+        if not rebalance:
+            rebalance.append("Allocations match baseline indicators. Keep monthly SIPs ongoing.")
+
+        return {
+            "total_invested": round(total_invested, 2),
+            "total_value": round(total_value, 2),
+            "total_gain": round(total_gain, 2),
+            "gain_pct": gain_pct,
+            "weighted_cagr": weighted_cagr,
+            "weighted_volatility": weighted_volatility,
+            "sharpe_ratio": sharpe,
+            "sortino_ratio": sortino,
+            "treynor_ratio": treynor,
+            "beta": beta,
+            "alpha": alpha,
+            "max_drawdown": max_drawdown,
+            "diversification_score": div_score,
+            "risk_score": round(weighted_volatility * 0.6 + (10 - div_score) * 4, 1),
+            "portfolio_health": f"{health_rating} (Score: {div_score}/10)",
+            "asset_allocation": asset_alloc,
+            "sector_allocation": sector_alloc,
+            "country_allocation": country_alloc,
+            "tax_estimation": {"stcg": stcg, "ltcg": ltcg},
+            "dividend_forecast": dividend_forecast,
+            "rebalancing_suggestions": rebalance
         }

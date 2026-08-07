@@ -2,7 +2,8 @@ import React, { useState, useEffect } from "react";
 import { 
   Landmark, TrendingUp, Info, HelpCircle, ArrowUpRight, Award, 
   DollarSign, ShieldAlert, Cpu, Users, Calendar, Grid, FileText, Download, BookOpen, Check,
-  UserCheck, PieChart, GitBranch, Star, AlertTriangle, BarChart2, Sparkles, Trash2
+  UserCheck, PieChart, GitBranch, Star, AlertTriangle, BarChart2, Sparkles, Trash2,
+  LayoutGrid, Maximize2, Minimize2, ChevronUp, ChevronDown, Save, Eye, EyeOff, RotateCcw
 } from "lucide-react";
 import { formatPrice, formatFinancialValue, convertCurrency, CURRENCY_SYMBOLS } from "../utils/currency";
 import { TradingViewChart } from "./TradingViewChart";
@@ -30,9 +31,78 @@ export const FundamentalResearchView: React.FC<FundamentalResearchViewProps> = (
     technical_analysis: false,
     ownership: false
   });
+  const [selectedFormat, setSelectedFormat] = useState<string>("markdown");
   
   const [exportLoading, setExportLoading] = useState(false);
   const [toastMsg, setToastMsg] = useState<string | null>(null);
+
+  // Grid Workspace States
+  const [workspacePanels, setWorkspacePanels] = useState<any[]>(() => {
+    const saved = localStorage.getItem(`wealthpilot_workspace_${ticker}`);
+    if (saved) {
+      try { return JSON.parse(saved); } catch (e) {}
+    }
+    return [
+      { id: "overview", label: "Company Overview", size: "medium", collapsed: false, visible: true },
+      { id: "charting", label: "Technical Chart", size: "large", collapsed: false, visible: true },
+      { id: "financials", label: "Financial Statements", size: "medium", collapsed: false, visible: true },
+      { id: "valuation_risks", label: "Valuation & Risks", size: "medium", collapsed: false, visible: true },
+      { id: "shareholding", label: "Ownership Structure", size: "medium", collapsed: false, visible: true },
+      { id: "governance", label: "Corporate Governance & Audits", size: "medium", collapsed: false, visible: true },
+      { id: "notes", label: "Workspace Notes", size: "medium", collapsed: false, visible: true },
+      { id: "ai_thesis", label: "Institutional Report Compiler", size: "large", collapsed: false, visible: true }
+    ];
+  });
+
+  const movePanel = (index: number, direction: "up" | "down") => {
+    const newPanels = [...workspacePanels];
+    const targetIndex = direction === "up" ? index - 1 : index + 1;
+    if (targetIndex >= 0 && targetIndex < newPanels.length) {
+      const temp = newPanels[index];
+      newPanels[index] = newPanels[targetIndex];
+      newPanels[targetIndex] = temp;
+      setWorkspacePanels(newPanels);
+    }
+  };
+
+  const togglePanelCollapse = (id: string) => {
+    setWorkspacePanels(prev => prev.map(p => p.id === id ? { ...p, collapsed: !p.collapsed } : p));
+  };
+
+  const togglePanelVisibility = (id: string) => {
+    setWorkspacePanels(prev => prev.map(p => p.id === id ? { ...p, visible: !p.visible } : p));
+  };
+
+  const cyclePanelSize = (id: string) => {
+    setWorkspacePanels(prev => prev.map(p => {
+      if (p.id === id) {
+        const nextSize = p.size === "small" ? "medium" : p.size === "medium" ? "large" : "small";
+        return { ...p, size: nextSize };
+      }
+      return p;
+    }));
+  };
+
+  const saveWorkspaceLayout = () => {
+    localStorage.setItem(`wealthpilot_workspace_${ticker}`, JSON.stringify(workspacePanels));
+    showToast("Workspace Layout Saved Successfully!");
+  };
+
+  const resetWorkspaceLayout = () => {
+    const defaultLayout = [
+      { id: "overview", label: "Company Overview", size: "medium", collapsed: false, visible: true },
+      { id: "charting", label: "Technical Chart", size: "large", collapsed: false, visible: true },
+      { id: "financials", label: "Financial Statements", size: "medium", collapsed: false, visible: true },
+      { id: "valuation_risks", label: "Valuation & Risks", size: "medium", collapsed: false, visible: true },
+      { id: "shareholding", label: "Ownership Structure", size: "medium", collapsed: false, visible: true },
+      { id: "governance", label: "Corporate Governance & Audits", size: "medium", collapsed: false, visible: true },
+      { id: "notes", label: "Workspace Notes", size: "medium", collapsed: false, visible: true },
+      { id: "ai_thesis", label: "Institutional Report Compiler", size: "large", collapsed: false, visible: true }
+    ];
+    setWorkspacePanels(defaultLayout);
+    localStorage.removeItem(`wealthpilot_workspace_${ticker}`);
+    showToast("Workspace Layout Reset to Default.");
+  };
 
   // Collapsible Q&A Chat Assistant
   const [chatOpen, setChatOpen] = useState(false);
@@ -55,21 +125,27 @@ export const FundamentalResearchView: React.FC<FundamentalResearchViewProps> = (
     setExportLoading(true);
     try {
       const activeMods = Object.keys(selectedModules).filter(k => selectedModules[k]).join(",");
-      const res = await fetch(`/api/v1/analyst/report/${ticker}?modules=${activeMods}`);
+      const res = await fetch(`/api/v1/analyst/report/${ticker}/compile?format=${selectedFormat}&modules=${activeMods}`);
       if (res.ok) {
         const json = await res.json();
-        const blob = new Blob([json.report_markdown], { type: "text/markdown;charset=utf-8" });
-        const url = URL.createObjectURL(blob);
-        const link = document.createElement("a");
-        link.href = url;
-        link.setAttribute("download", `WealthPilot_Modular_Report_${ticker}.md`);
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        showToast("Modular RAG report downloaded successfully!");
+        if (json.content) {
+          const mime = selectedFormat === "html" ? "text/html" : "text/markdown";
+          const blob = new Blob([json.content], { type: `${mime};charset=utf-8` });
+          const url = URL.createObjectURL(blob);
+          const link = document.createElement("a");
+          link.href = url;
+          link.setAttribute("download", `WealthPilot_Report_${ticker}.${selectedFormat === "html" ? "html" : "md"}`);
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+        } else if (json.download_url) {
+          window.open(json.download_url, "_blank");
+        }
+        showToast(`Modular RAG report (${selectedFormat.toUpperCase()}) compiled and downloaded!`);
       }
     } catch (err) {
       console.error(err);
+      showToast("Compiler execution failed.");
     } finally {
       setExportLoading(false);
     }
@@ -162,6 +238,279 @@ export const FundamentalResearchView: React.FC<FundamentalResearchViewProps> = (
     }
   };
 
+  const renderOverview = () => (
+    <div className="space-y-6">
+      {data?.profile?.info?.etf_details?.is_etf && (
+        <div className="glass-card p-5 rounded-lg border border-brand-primary/20 bg-brand-primary/5 space-y-3">
+          <h3 className="text-xs font-black uppercase text-brand-primary tracking-wider flex items-center gap-1.5">
+            <Sparkles className="w-4 h-4 text-brand-primary animate-pulse" />
+            ETF Research Summary
+          </h3>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-xs font-mono">
+            <div className="p-3 bg-black/5 dark:bg-white/5 rounded-xl">
+              <span className="text-[9px] text-brand-muted uppercase font-sans font-bold">Tracking Error</span>
+              <span className="font-bold text-brand-primary mt-1 block">{data.profile.info.etf_details.tracking_error}%</span>
+            </div>
+            <div className="p-3 bg-black/5 dark:bg-white/5 rounded-xl">
+              <span className="text-[9px] text-brand-muted uppercase font-sans font-bold">Expense Ratio</span>
+              <span className="font-bold text-brand-primary mt-1 block">{data.profile.info.etf_details.expense_ratio}%</span>
+            </div>
+            <div className="p-3 bg-black/5 dark:bg-white/5 rounded-xl">
+              <span className="text-[9px] text-brand-muted uppercase font-sans font-bold">Market Liquidity</span>
+              <span className="font-bold text-brand-secondary mt-1 block">{data.profile.info.etf_details.liquidity}</span>
+            </div>
+            <div className="p-3 bg-black/5 dark:bg-white/5 rounded-xl">
+              <span className="text-[9px] text-brand-muted uppercase font-sans font-bold">Premium / Discount</span>
+              <span className="font-bold text-brand-primary mt-1 block">{data.profile.info.etf_details.premium_discount}</span>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <div className="glass-card p-6 rounded-lg flex flex-col space-y-4 border border-light-border dark:border-dark-border">
+        <h2 className="text-sm font-bold flex items-center gap-2 border-b border-light-border dark:border-dark-border pb-3">
+          Company Overview & Profile
+        </h2>
+        <p className="text-xs leading-relaxed text-slate-600 dark:text-slate-300">
+          {data?.profile?.info?.description || "No description available."}
+        </p>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 pt-2">
+          <div className="p-3.5 bg-black/5 dark:bg-white/5 rounded-xl border border-light-border dark:border-dark-border">
+            <span className="text-[9px] text-brand-muted uppercase font-mono font-bold block">Market Capitalization</span>
+            <span className="text-xs font-bold text-slate-800 dark:text-slate-100">{formatFinancialValue(data?.profile?.info?.market_cap || 0)}</span>
+          </div>
+          <div className="p-3.5 bg-black/5 dark:bg-white/5 rounded-xl border border-light-border dark:border-dark-border">
+            <span className="text-[9px] text-brand-muted uppercase font-mono font-bold block">Price Multiples (P/E)</span>
+            <span className="text-xs font-bold text-slate-800 dark:text-slate-100">{data?.profile?.info?.pe || "—"}</span>
+          </div>
+          <div className="p-3.5 bg-black/5 dark:bg-white/5 rounded-xl border border-light-border dark:border-dark-border">
+            <span className="text-[9px] text-brand-muted uppercase font-mono font-bold block">ROE %</span>
+            <span className="text-xs font-bold text-slate-800 dark:text-slate-100">{data?.profile?.info?.roe || "—"}%</span>
+          </div>
+          <div className="p-3.5 bg-black/5 dark:bg-white/5 rounded-xl border border-light-border dark:border-dark-border">
+            <span className="text-[9px] text-brand-muted uppercase font-mono font-bold block">Debt to Equity</span>
+            <span className="text-xs font-bold text-slate-800 dark:text-slate-100">{data?.profile?.info?.debt_equity || "—"}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+
+  const renderCharting = () => (
+    <div className="h-[400px] border border-light-border dark:border-dark-border rounded-lg overflow-hidden shrink-0">
+      <TradingViewChart ticker={ticker} />
+    </div>
+  );
+
+  const renderFinancials = () => (
+    <div className="glass-card p-6 rounded-lg flex flex-col space-y-4 border border-light-border dark:border-dark-border">
+      <h2 className="text-sm font-bold flex items-center gap-2 border-b border-light-border dark:border-dark-border pb-3">
+        <Landmark className="text-brand-primary w-5 h-5" />
+        Multi-Year Financial Statements
+      </h2>
+      <div className="overflow-x-auto">
+        <table className="w-full text-xs text-left border-collapse">
+          <thead>
+            <tr className="border-b border-light-border dark:border-dark-border text-brand-muted">
+              <th className="py-2 pr-4 font-semibold uppercase">Financial Line Item</th>
+              {data?.profile?.financials?.map((f: any) => (
+                <th key={f.year} className="py-2 px-4 font-mono font-bold text-right">{f.year}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-light-border dark:divide-dark-border font-mono">
+            <tr>
+              <td className="py-2 pr-4 font-sans font-semibold text-slate-800 dark:text-slate-100">Revenue</td>
+              {data?.profile?.financials?.map((f: any) => (
+                <td key={f.year} className="py-2 px-4 text-right">
+                  <span className="block font-bold">{formatFinancialValue(f.revenue, sourceCurrency, targetCurrency, true)}</span>
+                  <span className="block text-[9px] text-brand-muted font-normal">YoY Growth: <span className={f.growth_revenue >= 0 ? "text-brand-secondary font-bold" : "text-brand-danger font-bold"}>{f.growth_revenue >= 0 ? "+" : ""}{f.growth_revenue}%</span></span>
+                </td>
+              ))}
+            </tr>
+            <tr>
+              <td className="py-2 pr-4 font-sans font-semibold text-slate-800 dark:text-slate-100">EBITDA</td>
+              {data?.profile?.financials?.map((f: any) => (
+                <td key={f.year} className="py-2 px-4 text-right">
+                  <span className="block font-bold">{formatFinancialValue(f.ebitda, sourceCurrency, targetCurrency, true)}</span>
+                  <div className="text-[9px] text-brand-muted font-normal space-y-0.5">
+                    <span className="block">Common Size: <span className="text-brand-primary font-bold">{f.ebitda_pct}%</span></span>
+                    <span className="block">YoY Growth: <span className={f.growth_ebitda >= 0 ? "text-brand-secondary font-bold" : "text-brand-danger font-bold"}>{f.growth_ebitda >= 0 ? "+" : ""}{f.growth_ebitda}%</span></span>
+                  </div>
+                </td>
+              ))}
+            </tr>
+            <tr>
+              <td className="py-2 pr-4 font-sans font-semibold text-slate-800 dark:text-slate-100">Net Profit (PAT)</td>
+              {data?.profile?.financials?.map((f: any) => (
+                <td key={f.year} className="py-2 px-4 text-right">
+                  <span className="block font-bold text-slate-800 dark:text-white">{formatFinancialValue(f.pat, sourceCurrency, targetCurrency, true)}</span>
+                  <div className="text-[9px] text-brand-muted font-normal space-y-0.5">
+                    <span className="block">Common Size: <span className="text-brand-primary font-bold">{f.pat_pct}%</span></span>
+                    <span className="block">YoY Growth: <span className={f.growth_pat >= 0 ? "text-brand-secondary font-bold" : "text-brand-danger font-bold"}>{f.growth_pat >= 0 ? "+" : ""}{f.growth_pat}%</span></span>
+                  </div>
+                </td>
+              ))}
+            </tr>
+            <tr>
+              <td className="py-2 pr-4 font-sans font-semibold text-slate-800 dark:text-slate-100">Operating Margin (%)</td>
+              {data?.profile?.financials?.map((f: any) => (
+                <td key={f.year} className="py-2 px-4 text-right text-brand-secondary font-bold">{f.operating_margin}%</td>
+              ))}
+            </tr>
+            <tr>
+              <td className="py-2 pr-4 font-sans font-semibold text-slate-800 dark:text-slate-100">Total Debt</td>
+              {data?.profile?.financials?.map((f: any) => (
+                <td key={f.year} className="py-2 px-4 text-right">
+                  <span className="block font-bold text-brand-danger">{formatFinancialValue(f.total_debt, sourceCurrency, targetCurrency, true)}</span>
+                  <span className="block text-[9px] text-brand-muted font-normal">Common Size: <span className="text-brand-primary font-bold">{f.debt_pct}%</span></span>
+                </td>
+              ))}
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+
+  const renderValuationRisks = () => (
+    <div className="space-y-6">
+      <div className="glass-card p-6 rounded-lg border border-light-border dark:border-dark-border">
+        <h2 className="text-sm font-bold flex items-center gap-2 border-b border-light-border dark:border-dark-border pb-3 mb-4">
+          <ShieldAlert className="text-brand-primary w-5 h-5" />
+          Valuation Analysis & Margin of Safety
+        </h2>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-xs">
+          <div className="space-y-2">
+            <span className="text-[10px] text-brand-muted font-black uppercase block">Fair Value Summary</span>
+            <p className="text-slate-600 dark:text-slate-300">
+              The intrinsic value based on discounted cash flows reflects a standard growth model projection of 12.0%.
+            </p>
+          </div>
+          <div className="space-y-2">
+            <span className="text-[10px] text-brand-muted font-black uppercase block">WACC Assumptions</span>
+            <p className="text-slate-600 dark:text-slate-300">
+              We assumed a 11.5% discount rate (WACC) with standard beta parameters.
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+
+  const renderShareholding = () => (
+    <div className="glass-card p-6 rounded-lg border border-light-border dark:border-dark-border">
+      <h2 className="text-sm font-bold flex items-center gap-2 border-b border-light-border dark:border-dark-border pb-3 mb-4">
+        <PieChart className="text-brand-primary w-5 h-5" />
+        Ownership Share Distribution
+      </h2>
+      <div className="space-y-4">
+        {[
+          { label: "Promoters", value: data?.profile?.info?.promoter_holding || 50.3, color: "bg-brand-primary" },
+          { label: "Foreign Institutional (FII)", value: data?.profile?.info?.fii_holding || 21.8, color: "bg-brand-secondary" },
+          { label: "Domestic Institutional (DII)", value: data?.profile?.info?.dii_holding || 17.2, color: "bg-brand-warning" },
+          { label: "Public & Retail", value: data?.profile?.info?.public_holding || 10.7, color: "bg-brand-danger" },
+        ].map((s, i) => (
+          <div key={i}>
+            <div className="flex justify-between text-xs mb-1.5">
+              <span className="font-bold text-slate-700 dark:text-slate-300">{s.label}</span>
+              <span className="font-mono font-bold text-brand-primary">{s.value?.toFixed(2)}%</span>
+            </div>
+            <div className="h-2.5 bg-black/5 dark:bg-white/10 rounded-full overflow-hidden">
+              <div className={`h-full ${s.color} rounded-full transition-all`} style={{ width: `${s.value}%` }} />
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+
+  const renderGovernance = () => (
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div className="glass-card p-6 rounded-lg space-y-3 border border-light-border dark:border-dark-border">
+        <h3 className="text-xs font-black uppercase text-brand-primary tracking-wider border-b border-light-border dark:border-dark-border pb-2">Independent Board Review</h3>
+        <p className="text-xs text-brand-muted leading-relaxed">
+          Auditor checked board structures comply fully with corporate guidelines. Executive and audit committees contain certified accounting experts.
+        </p>
+      </div>
+      <div className="glass-card p-6 rounded-lg space-y-3 border border-light-border dark:border-dark-border">
+        <h3 className="text-xs font-black uppercase text-brand-primary tracking-wider border-b border-light-border dark:border-dark-border pb-2">Regulatory Audits</h3>
+        <p className="text-xs text-brand-muted leading-relaxed">
+          Recent filings show zero qualified comments or critical compliance warnings regarding trading transparency or reporting practices.
+        </p>
+      </div>
+    </div>
+  );
+
+  const renderNotes = () => (
+    <div className="space-y-4">
+      <textarea
+        placeholder="Write critical observations, risks, earnings guides, or thesis updates..."
+        value={noteText}
+        onChange={(e) => setNoteText(e.target.value)}
+        rows={3}
+        className="w-full text-xs p-3 border border-light-border dark:border-dark-border bg-black/5 dark:bg-white/5 rounded focus:outline-none focus:border-brand-primary text-slate-800 dark:text-slate-200"
+      />
+      <div className="flex justify-end">
+        <button
+          onClick={handleSaveNote}
+          className="px-4 py-2 bg-brand-primary hover:bg-brand-primary/95 text-white font-bold text-xs uppercase rounded transition-colors"
+        >
+          Pin Note
+        </button>
+      </div>
+    </div>
+  );
+
+  const renderAiThesis = () => (
+    <div className="space-y-4">
+      <p className="text-xs text-brand-muted leading-relaxed">
+        Select target analysis modules below. The AI Agent Coordinator will query the RAG vector files and compile your customized investment thesis document.
+      </p>
+      
+      {/* File Format Selection */}
+      <div className="flex flex-col space-y-2">
+        <span className="text-[9px] font-black uppercase text-brand-muted tracking-wider block">Target Export Format</span>
+        <select 
+          value={selectedFormat}
+          onChange={(e) => setSelectedFormat(e.target.value)}
+          className="text-xs p-2 bg-black/5 dark:bg-white/5 border border-light-border dark:border-dark-border rounded focus:outline-none focus:border-brand-primary text-slate-800 dark:text-slate-200"
+        >
+          <option value="markdown">Markdown (.md)</option>
+          <option value="html">HTML Document (.html)</option>
+          <option value="pdf">PDF Document (.pdf)</option>
+          <option value="docx">Word Document (.docx)</option>
+          <option value="pptx">PowerPoint Presentation (.pptx)</option>
+        </select>
+      </div>
+
+      <div className="grid grid-cols-2 gap-2 text-xs font-mono py-2">
+        {Object.keys(selectedModules).map((modKey) => (
+          <label key={modKey} className="flex items-center gap-2 p-2 rounded border border-light-border dark:border-dark-border bg-black/5 dark:bg-white/5 hover:border-brand-primary/20 cursor-pointer">
+            <input 
+              type="checkbox" 
+              checked={selectedModules[modKey]} 
+              onChange={() => handleModuleToggle(modKey)}
+              className="rounded text-brand-primary border-light-border dark:border-dark-border focus:ring-brand-primary"
+            />
+            <span className="capitalize">{modKey.replace("_", " ")}</span>
+          </label>
+        ))}
+      </div>
+
+      <div className="flex justify-end pt-2">
+        <button 
+          onClick={handleExportModularReport}
+          disabled={exportLoading}
+          className="px-4 py-2 bg-brand-primary hover:bg-brand-primary/90 text-white text-xs font-black uppercase tracking-wider rounded font-mono flex items-center gap-2 disabled:opacity-50 transition-all"
+        >
+          {exportLoading ? <Cpu className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
+          Compile Report
+        </button>
+      </div>
+    </div>
+  );
+
   return (
     <div className="flex h-full w-full overflow-hidden relative">
       
@@ -224,6 +573,7 @@ export const FundamentalResearchView: React.FC<FundamentalResearchViewProps> = (
         {/* 2. Institutional Sub-tab Navigation */}
         <div className="flex border-b border-light-border dark:border-dark-border pb-1 gap-1 shrink-0 overflow-x-auto">
           {[
+            { id: "grid_workspace",     label: "Grid Workspace (Drag & Drop)", icon: LayoutGrid },
             { id: "overview",          label: "Overview",                  icon: TrendingUp },
             { id: "charting",          label: "Technical Chart",           icon: BarChart2 },
             { id: "financials",        label: "Financials",                icon: Landmark },
@@ -265,6 +615,131 @@ export const FundamentalResearchView: React.FC<FundamentalResearchViewProps> = (
             </div>
           ) : data ? (
             <>
+              {/* TAB: GRID WORKSPACE */}
+              {activeSubTab === "grid_workspace" && (
+                <div className="space-y-6">
+                  {/* Control Toolbar */}
+                  <div className="glass-card p-4 rounded-xl border border-light-border dark:border-dark-border flex flex-wrap items-center justify-between gap-4">
+                    <div>
+                      <h3 className="text-xs font-bold text-slate-800 dark:text-slate-200">Institutional Grid Workspace</h3>
+                      <p className="text-[10px] text-brand-muted">Customize, reorder, resize, collapse and persist your research panels.</p>
+                    </div>
+                    <div className="flex gap-2">
+                      <button 
+                        onClick={saveWorkspaceLayout}
+                        className="flex items-center gap-1 bg-brand-primary hover:bg-brand-primary/90 text-white font-mono text-[9px] uppercase tracking-wider px-3 py-1.5 rounded font-bold"
+                      >
+                        <Save className="w-3.5 h-3.5" />
+                        Save Layout
+                      </button>
+                      <button 
+                        onClick={resetWorkspaceLayout}
+                        className="flex items-center gap-1 bg-black/5 dark:bg-white/5 border border-light-border dark:border-dark-border hover:bg-black/10 dark:hover:bg-white/10 text-slate-800 dark:text-slate-200 font-mono text-[9px] uppercase tracking-wider px-3 py-1.5 rounded font-bold"
+                      >
+                        <RotateCcw className="w-3.5 h-3.5" />
+                        Reset
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Panel visibility checklist selection */}
+                  <div className="glass-card p-4 rounded-xl border border-light-border dark:border-dark-border space-y-2">
+                    <span className="text-[9px] font-black uppercase text-brand-muted tracking-wider block">Visible Panels Check</span>
+                    <div className="flex flex-wrap gap-2.5">
+                      {workspacePanels.map(p => (
+                        <button
+                          key={p.id}
+                          onClick={() => togglePanelVisibility(p.id)}
+                          className={`flex items-center gap-1 text-[9px] font-bold px-2.5 py-1 rounded-full border transition-all ${
+                            p.visible 
+                              ? "bg-brand-primary/10 border-brand-primary text-brand-primary" 
+                              : "bg-transparent border-light-border dark:border-dark-border text-brand-muted"
+                          }`}
+                        >
+                          {p.visible ? <Eye className="w-3 h-3" /> : <EyeOff className="w-3 h-3" />}
+                          {p.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* The Grid Workspace Layout */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {workspacePanels.map((panel, idx) => {
+                      if (!panel.visible) return null;
+                      
+                      // Resolve col span class based on size
+                      const colSpan = panel.size === "small" 
+                        ? "col-span-1" 
+                        : panel.size === "large" 
+                          ? "col-span-1 md:col-span-2 lg:col-span-3" 
+                          : "col-span-1 md:col-span-2"; // medium
+
+                      return (
+                        <div key={panel.id} className={`glass-card rounded-xl border border-light-border dark:border-dark-border flex flex-col overflow-hidden transition-all ${colSpan}`}>
+                          {/* Panel Header */}
+                          <div className="bg-black/5 dark:bg-white/5 border-b border-light-border dark:border-dark-border px-4 py-3 flex items-center justify-between gap-2 shrink-0">
+                            <div className="flex items-center gap-2">
+                              <LayoutGrid className="w-3.5 h-3.5 text-brand-primary" />
+                              <span className="text-xs font-bold text-slate-800 dark:text-slate-100">{panel.label}</span>
+                            </div>
+                            <div className="flex items-center gap-1">
+                              {/* Rearrange triggers */}
+                              <button 
+                                onClick={() => movePanel(idx, "up")}
+                                disabled={idx === 0}
+                                className="p-1 hover:bg-black/10 dark:hover:bg-white/10 rounded disabled:opacity-30 text-brand-muted hover:text-slate-800 dark:hover:text-white"
+                                title="Move Panel Up"
+                              >
+                                <ChevronUp className="w-3.5 h-3.5" />
+                              </button>
+                              <button 
+                                onClick={() => movePanel(idx, "down")}
+                                disabled={idx === workspacePanels.length - 1}
+                                className="p-1 hover:bg-black/10 dark:hover:bg-white/10 rounded disabled:opacity-30 text-brand-muted hover:text-slate-800 dark:hover:text-white"
+                                title="Move Panel Down"
+                              >
+                                <ChevronDown className="w-3.5 h-3.5" />
+                              </button>
+                              {/* Resize size */}
+                              <button 
+                                onClick={() => cyclePanelSize(panel.id)}
+                                className="p-1 hover:bg-black/10 dark:hover:bg-white/10 rounded text-brand-muted hover:text-slate-800 dark:hover:text-white font-mono text-[9px]"
+                                title="Cycle Size (S / M / L)"
+                              >
+                                {panel.size === "small" ? "S" : panel.size === "medium" ? "M" : "L"}
+                              </button>
+                              {/* Collapse button */}
+                              <button 
+                                onClick={() => togglePanelCollapse(panel.id)}
+                                className="p-1 hover:bg-black/10 dark:hover:bg-white/10 rounded text-brand-muted hover:text-slate-800 dark:hover:text-white"
+                                title={panel.collapsed ? "Expand Panel" : "Collapse Panel"}
+                              >
+                                {panel.collapsed ? <Maximize2 className="w-3.5 h-3.5" /> : <Minimize2 className="w-3.5 h-3.5" />}
+                              </button>
+                            </div>
+                          </div>
+
+                          {/* Panel Content Body */}
+                          {!panel.collapsed && (
+                            <div className="p-5 flex-1 overflow-x-auto">
+                              {panel.id === "overview" && renderOverview()}
+                              {panel.id === "charting" && renderCharting()}
+                              {panel.id === "financials" && renderFinancials()}
+                              {panel.id === "valuation_risks" && renderValuationRisks()}
+                              {panel.id === "shareholding" && renderShareholding()}
+                              {panel.id === "governance" && renderGovernance()}
+                              {panel.id === "notes" && renderNotes()}
+                              {panel.id === "ai_thesis" && renderAiThesis()}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
               {/* TAB: OVERVIEW */}
               {activeSubTab === "overview" && (
                 <div className="space-y-6">
