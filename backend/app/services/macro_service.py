@@ -169,7 +169,38 @@ class MacroService:
             "ipo_calendar": ipo_calendar,
             "corporate_actions": corporate_actions,
             "fii_dii_activity": fii_dii_activity,
+            "fii_dii_flows": {
+                "fii_net_today_cr": f"+{fii_val:,} Cr",
+                "dii_net_today_cr": f"+{dii_val:,} Cr",
+                "combined_flow": f"Net Inflow +{fii_val + dii_val:,} Cr"
+            },
             "global_markets": global_markets,
             "indian_indices": indian_indices,
-            "commodities": commodities
+            "commodities": commodities,
+            # Keys the frontend DashboardView mobile view uses
+            "market_news": [
+                {"source": "Economic Times", "time": "2h ago", "title": "Nifty 50 holds 24,000 support; IT and Financials lead gains"},
+                {"source": "Moneycontrol",   "time": "3h ago", "title": "FII net buyers for 4th straight session; rupee strengthens"},
+                {"source": "NDTV Profit",    "time": "5h ago", "title": "RBI policy: Status quo on rates, growth outlook upgraded"}
+            ],
+            "corporate_calendar": {
+                "earnings": earnings_calendar,
+                "dividends": dividend_calendar,
+                "ipos": ipo_calendar,
+                "economic": [
+                    {"event": "RBI MPC Meeting", "date": get_date_str(7)},
+                    {"event": "India CPI Inflation Data", "date": get_date_str(12)},
+                    {"event": "India IIP Data Release", "date": get_date_str(15)}
+                ]
+            },
+            "top_gainers": [
+                {"ticker": "INFY.NS",      "change": "+3.2%"},
+                {"ticker": "TCS.NS",       "change": "+2.8%"},
+                {"ticker": "RELIANCE.NS",  "change": "+1.9%"}
+            ],
+            "top_losers": [
+                {"ticker": "TATASTEEL.NS", "change": "-2.1%"},
+                {"ticker": "HINDALCO.NS",  "change": "-1.8%"},
+                {"ticker": "ONGC.NS",      "change": "-1.3%"}
+            ]
         }

@@ -304,7 +304,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onSelectTicker, ta
             <div>
               <span className="text-[9px] font-extrabold uppercase tracking-widest text-brand-secondary block mb-1">Gainers</span>
               <div className="space-y-1.5">
-                {topGainers.slice(0, 3).map((g, idx) => (
+                {(macroData?.top_gainers || []).slice(0, 3).map((g: any, idx: number) => (
                   <div key={idx} onClick={() => onSelectTicker(g.ticker)} className="p-1.5 rounded bg-brand-secondary/5 border border-brand-secondary/10 flex justify-between cursor-pointer">
                     <span className="font-bold">{g.ticker}</span>
                     <span className="text-brand-secondary">{g.change}</span>
@@ -315,7 +315,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onSelectTicker, ta
             <div>
               <span className="text-[9px] font-extrabold uppercase tracking-widest text-brand-danger block mb-1">Losers</span>
               <div className="space-y-1.5">
-                {topLosers.slice(0, 3).map((l, idx) => (
+                {(macroData?.top_losers || []).slice(0, 3).map((l: any, idx: number) => (
                   <div key={idx} onClick={() => onSelectTicker(l.ticker)} className="p-1.5 rounded bg-brand-danger/5 border border-brand-danger/10 flex justify-between cursor-pointer">
                     <span className="font-bold">{l.ticker}</span>
                     <span className="text-brand-danger">{l.change}</span>
