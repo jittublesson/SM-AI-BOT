@@ -239,7 +239,7 @@ ${entry.lessons_learned || "—"}
   };
 
   return (
-    <div className="flex flex-col h-full overflow-hidden space-y-4 relative">
+    <div className="flex flex-col space-y-4 relative">
       {/* Toast */}
       {toast && (
         <div className="fixed top-6 right-6 z-[100] px-4 py-3 rounded-lg bg-brand-success text-white text-xs font-bold shadow-xl flex items-center gap-2">
@@ -298,7 +298,7 @@ ${entry.lessons_learned || "—"}
       </div>
 
       {/* Entries List */}
-      <div className="flex-1 overflow-y-auto space-y-3 pr-1">
+      <div className="flex-1 space-y-3 pr-1">
         {loading ? (
           <div className="flex items-center justify-center h-40 text-brand-muted text-xs">
             <RefreshCw className="w-4 h-4 animate-spin mr-2" /> Loading journal entries...

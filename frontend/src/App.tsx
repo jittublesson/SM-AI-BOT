@@ -454,11 +454,11 @@ export default function App() {
   const allSidebarItems = sidebarGroups.flatMap(g => g.items);
 
   return (
-    <div className="flex h-screen w-screen overflow-hidden bg-light-bg dark:bg-dark-bg select-none font-sans nav-transition">
+    <div className="flex min-h-screen w-full bg-light-bg dark:bg-dark-bg select-none font-sans nav-transition">
       
       {/* 1. Sidebar Navigation - Upgraded modern minimal look */}
       {!isMobile && (
-        <aside className={`bg-white dark:bg-[#070b13] border-r border-light-border dark:border-dark-border flex flex-col justify-between z-30 transition-all duration-300 ${
+        <aside className={`bg-white dark:bg-[#070b13] border-r border-light-border dark:border-dark-border flex flex-col justify-between z-30 transition-all duration-300 sticky top-0 h-screen overflow-y-auto shrink-0 ${
           sidebarCollapsed ? "w-16" : "w-64"
         }`}>
         <div>
@@ -573,10 +573,10 @@ export default function App() {
       )}
 
       {/* 2. Main Content Container */}
-      <div className="flex-1 flex flex-col overflow-hidden relative">
+      <div className="flex-1 flex flex-col relative min-h-screen">
         
         {/* Main top bar header */}
-        <header className="h-16 border-b border-light-border dark:border-dark-border bg-white dark:bg-[#070b13] flex justify-between items-center px-4 md:px-6 z-20 shrink-0 select-none">
+        <header className="h-16 border-b border-light-border dark:border-dark-border bg-white dark:bg-[#070b13] flex justify-between items-center px-4 md:px-6 z-20 shrink-0 select-none sticky top-0">
           {isMobile ? (
             /* Mobile Header Layout */
             <>
@@ -689,7 +689,7 @@ export default function App() {
         </header>
 
         {/* View render area */}
-        <main className="flex-1 p-6 overflow-hidden relative">
+        <main className="flex-1 p-6 relative">
           {activeTab === "dashboard"    && <DashboardView onSelectTicker={(t) => { setTicker(t); setActiveTab("fundamentals"); }} targetCurrency={targetCurrency} />}
           {activeTab === "market"       && <MarketIntelView onSelectTicker={(t) => { setTicker(t); setActiveTab("fundamentals"); }} targetCurrency={targetCurrency} />}
           {activeTab === "watchlist"    && <WatchlistView onSelectTicker={(t) => { setTicker(t); setActiveTab("fundamentals"); }} targetCurrency={targetCurrency} />}
@@ -815,7 +815,7 @@ export default function App() {
         <aside className={`bg-white dark:bg-[#070b13] border-l border-light-border dark:border-dark-border flex flex-col justify-between shrink-0 transition-all duration-300 ${
           isMobile 
             ? "fixed inset-0 w-full h-full z-50" 
-            : "w-96 relative h-auto z-30"
+            : "w-96 sticky top-16 h-[calc(100vh-64px)] z-30"
         }`}>
           {/* Header */}
           <div className="p-4 border-b border-light-border dark:border-dark-border flex justify-between items-center bg-black/5 dark:bg-white/5" style={{ minHeight: "60px" }}>

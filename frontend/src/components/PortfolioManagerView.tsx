@@ -240,7 +240,7 @@ export const PortfolioManagerView: React.FC<PortfolioManagerViewProps> = ({ targ
   const metrics = calculateMetrics();
 
   return (
-    <div className="flex flex-col space-y-6 h-full overflow-hidden relative">
+    <div className="flex flex-col space-y-6 relative">
       {/* 1. Header Summaries */}
       <div className="glass-card p-5 rounded-lg flex flex-col md:flex-row justify-between items-start md:items-center gap-6 shrink-0">
         <div className="space-y-1">
@@ -280,9 +280,9 @@ export const PortfolioManagerView: React.FC<PortfolioManagerViewProps> = ({ targ
       </div>
 
       {/* 2. Main content panels */}
-      <div className="flex-1 grid grid-cols-1 lg:grid-cols-3 gap-6 overflow-hidden">
+      <div className="flex-1 grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Ledger list of assets */}
-        <div className="lg:col-span-2 glass-card rounded-lg flex flex-col overflow-hidden h-full">
+        <div className="lg:col-span-2 glass-card rounded-lg flex flex-col">
           <div className="p-3 border-b border-light-border dark:border-dark-border bg-black/5 dark:bg-white/5 flex justify-between items-center shrink-0">
             <span className="text-xs font-black uppercase text-brand-primary tracking-wider flex items-center gap-1.5">
               <Briefcase className="w-4 h-4 text-brand-primary" />
@@ -290,7 +290,7 @@ export const PortfolioManagerView: React.FC<PortfolioManagerViewProps> = ({ targ
             </span>
           </div>
 
-          <div className="flex-1 overflow-y-auto pr-1 pb-4">
+          <div className="flex-1 pr-1 pb-4">
             {loading ? (
               <div className="h-full flex items-center justify-center text-brand-muted text-xs">
                 <RefreshCw className="w-5 h-5 animate-spin mr-2" />
@@ -429,7 +429,7 @@ export const PortfolioManagerView: React.FC<PortfolioManagerViewProps> = ({ targ
         </div>
 
         {/* Dynamic Allocations visualizer sidebar */}
-        <div className="lg:col-span-1 glass-card rounded-lg p-4 flex flex-col space-y-6 h-full overflow-y-auto pr-1">
+        <div className="lg:col-span-1 glass-card rounded-lg p-4 flex flex-col space-y-6 lg:sticky lg:top-20 h-fit pr-1">
           {/* Asset Allocation splits */}
           <div className="space-y-3">
             <h3 className="text-xs font-black uppercase text-brand-primary tracking-wider border-b border-light-border dark:border-dark-border pb-2 flex items-center gap-1.5">

@@ -101,7 +101,7 @@ export const CompareCompaniesView: React.FC<CompareCompaniesViewProps> = ({ targ
   };
 
   return (
-    <div className="space-y-6 overflow-y-auto h-full pr-2">
+    <div className="space-y-6 pb-6">
       {/* Tickers Selection Header */}
       <div className="glass-card p-6 rounded-lg grid grid-cols-1 lg:grid-cols-3 gap-6 items-center">
         <div className="lg:col-span-2">

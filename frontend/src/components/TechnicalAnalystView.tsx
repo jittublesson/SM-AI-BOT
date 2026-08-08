@@ -66,7 +66,7 @@ export const TechnicalAnalystView: React.FC<TechnicalAnalystViewProps> = ({ tick
   };
 
   return (
-    <div className="space-y-6 overflow-y-auto h-full pr-2">
+    <div className="space-y-6 pb-6">
       {loading ? (
         <div className="flex items-center justify-center py-40 text-brand-muted text-xs">
           Analyzing technical charts for {ticker}...

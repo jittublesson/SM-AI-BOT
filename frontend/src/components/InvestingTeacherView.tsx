@@ -85,9 +85,9 @@ export const InvestingTeacherView: React.FC = () => {
   };
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-4 gap-6 h-full overflow-hidden">
+    <div className="grid grid-cols-1 md:grid-cols-4 gap-6 h-auto">
       {/* Sidebar Course Navigator */}
-      <div className="md:col-span-1 glass-card p-4 rounded-lg flex flex-col h-full">
+      <div className="md:col-span-1 glass-card p-4 rounded-lg flex flex-col md:sticky md:top-20 h-fit">
         <h2 className="text-sm font-bold flex items-center gap-2 border-b border-light-border dark:border-dark-border pb-3 mb-4">
           <BookOpen className="text-brand-primary w-5 h-5" />
           Academy Course Index
@@ -96,7 +96,7 @@ export const InvestingTeacherView: React.FC = () => {
         {loading ? (
           <div className="text-brand-muted text-xs p-4 text-center">Loading academy...</div>
         ) : (
-          <div className="space-y-2 overflow-y-auto flex-1 pr-1">
+          <div className="space-y-2 flex-1 pr-1">
             {lessons.map((lesson) => {
               const isActive = activeLesson?.slug === lesson.slug;
               const isCompleted = completedSlugs.includes(lesson.slug);
@@ -127,7 +127,7 @@ export const InvestingTeacherView: React.FC = () => {
       </div>
 
       {/* Main Lesson Content */}
-      <div className="md:col-span-3 glass-card p-6 rounded-lg overflow-y-auto h-full flex flex-col space-y-6">
+      <div className="md:col-span-3 glass-card p-6 rounded-lg flex flex-col space-y-6">
         {activeLesson ? (
           <>
             {/* Header info */}

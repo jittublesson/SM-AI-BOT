@@ -97,10 +97,10 @@ export const AnnualReportView: React.FC<AnnualReportViewProps> = ({ ticker, targ
   };
 
   return (
-    <div className="grid grid-cols-1 xl:grid-cols-4 gap-6 h-full overflow-hidden">
+    <div className="grid grid-cols-1 xl:grid-cols-4 gap-6 h-auto">
       
       {/* 1. Interactive Table of Contents (TOC) Sidebar */}
-      <div className="xl:col-span-1 glass-card p-4 rounded-lg flex flex-col space-y-4 h-full overflow-y-auto pr-1">
+      <div className="xl:col-span-1 glass-card p-4 rounded-lg flex flex-col space-y-4 xl:sticky xl:top-20 h-fit pr-1">
         <h2 className="text-xs font-black uppercase text-brand-primary tracking-wider flex items-center gap-1.5 border-b border-light-border dark:border-dark-border pb-2.5">
           <BookOpen className="w-4 h-4 text-brand-primary" />
           Interactive TOC Indices
@@ -130,7 +130,7 @@ export const AnnualReportView: React.FC<AnnualReportViewProps> = ({ ticker, targ
       </div>
 
       {/* 2. Main Document Text Reader Workspace */}
-      <div className="xl:col-span-2 glass-card p-6 rounded-lg flex flex-col space-y-4 h-full overflow-y-auto pr-1">
+      <div className="xl:col-span-2 glass-card p-6 rounded-lg flex flex-col space-y-4 pr-1">
         <div className="border-b border-light-border dark:border-dark-border pb-3 flex justify-between items-center">
           <h2 className="text-sm font-bold flex items-center gap-2">
             <FileText className="text-brand-primary w-5 h-5" />
@@ -214,7 +214,7 @@ export const AnnualReportView: React.FC<AnnualReportViewProps> = ({ ticker, targ
       </div>
 
       {/* 3. Audit Integrity Checklist Sidebar */}
-      <div className="xl:col-span-1 glass-card p-4 rounded-lg flex flex-col space-y-6 h-full overflow-y-auto pr-1">
+      <div className="xl:col-span-1 glass-card p-4 rounded-lg flex flex-col space-y-6 xl:sticky xl:top-20 h-fit pr-1">
         <div>
           <h2 className="text-xs font-black uppercase text-brand-primary tracking-wider flex items-center gap-1.5 border-b border-light-border dark:border-dark-border pb-2.5 mb-3">
             <ShieldCheck className="w-4 h-4 text-brand-secondary" />

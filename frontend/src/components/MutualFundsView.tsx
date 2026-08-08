@@ -343,7 +343,7 @@ export const MutualFundsView: React.FC<MutualFundsViewProps> = ({ targetCurrency
   );
 
   return (
-    <div className="flex flex-col space-y-6 h-full overflow-hidden relative">
+    <div className="flex flex-col space-y-6 relative">
       {/* Toast notification */}
       {toastMsg && (
         <div className="fixed top-6 right-6 z-[100] px-4 py-3 rounded-lg bg-brand-success text-white text-xs font-bold shadow-xl flex items-center gap-2 animate-pulse">
@@ -383,12 +383,12 @@ export const MutualFundsView: React.FC<MutualFundsViewProps> = ({ targetCurrency
       </div>
 
       {/* View Content Area */}
-      <div className="flex-1 overflow-hidden relative">
+      <div className="flex-1 relative">
         {/* SUBVIEW: EXPLORER & SCREENER */}
         {activeSubTab === "explorer" && !selectedFundId && (
-          <div className="flex flex-col md:flex-row gap-6 h-full overflow-hidden">
+          <div className="flex flex-col md:flex-row gap-6">
             {/* Filter sidebar */}
-            <div className="w-full md:w-64 glass-card p-4 rounded-lg flex flex-col space-y-4 shrink-0 h-fit md:h-full overflow-y-auto">
+            <div className="w-full md:w-64 glass-card p-4 rounded-lg flex flex-col space-y-4 shrink-0 h-fit md:sticky md:top-20">
               <h3 className="text-xs font-black uppercase text-brand-primary tracking-wider flex items-center gap-1.5 border-b border-light-border dark:border-dark-border pb-2.5">
                 <Filter className="w-4 h-4" />
                 Screener Filters
@@ -481,7 +481,7 @@ export const MutualFundsView: React.FC<MutualFundsViewProps> = ({ targetCurrency
                   <span>No mutual funds match your screener criteria. Try expanding filters.</span>
                 </div>
               ) : (
-                <div className="flex-1 overflow-y-auto space-y-3 pr-1 pb-4">
+                <div className="flex-1 space-y-3 pr-1 pb-4">
                   {filteredExplorerFunds.map((fund) => (
                     <div key={fund.id} className="glass-card p-4 rounded-lg flex justify-between items-center hover:border-brand-primary/25 transition-all group">
                       <div className="space-y-1.5 flex-1">
@@ -557,7 +557,7 @@ export const MutualFundsView: React.FC<MutualFundsViewProps> = ({ targetCurrency
             </div>
 
             {/* Fund statistics grids */}
-            <div className="flex-1 overflow-y-auto space-y-6 pr-1 pb-6">
+            <div className="flex-1 space-y-6 pr-1 pb-6">
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4 shrink-0">
                 {[
                   { label: "Current NAV", value: `₹${selectedFund.nav}` },
@@ -956,7 +956,7 @@ export const MutualFundsView: React.FC<MutualFundsViewProps> = ({ targetCurrency
 
         {/* SUBVIEW: FUND COMPARISON */}
         {activeSubTab === "compare" && (
-          <div className="space-y-6 h-full overflow-y-auto pr-1 pb-6">
+          <div className="space-y-6 pr-1 pb-6">
             <div className="glass-card p-4 rounded-lg flex flex-col space-y-3">
               <h3 className="text-xs font-black uppercase text-brand-primary tracking-wider border-b border-light-border dark:border-dark-border pb-2.5">Select Mutual Funds to Compare</h3>
               
@@ -1057,9 +1057,9 @@ export const MutualFundsView: React.FC<MutualFundsViewProps> = ({ targetCurrency
 
         {/* SUBVIEW: SIP CALCULATOR */}
         {activeSubTab === "sip" && (
-          <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 h-full overflow-hidden">
+          <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 h-auto">
             {/* Input sliders */}
-            <div className="lg:col-span-1 glass-card p-4 rounded-lg flex flex-col space-y-4 overflow-y-auto h-full pr-1">
+            <div className="lg:col-span-1 glass-card p-4 rounded-lg flex flex-col space-y-4 lg:sticky lg:top-20 h-fit pr-1">
               <h3 className="text-xs font-black uppercase text-brand-primary tracking-wider border-b border-light-border dark:border-dark-border pb-2.5">SIP Inputs</h3>
               
               <div className="space-y-4 text-xs">
@@ -1131,7 +1131,7 @@ export const MutualFundsView: React.FC<MutualFundsViewProps> = ({ targetCurrency
             </div>
 
             {/* Calculations outputs */}
-            <div className="lg:col-span-3 glass-card p-6 rounded-lg overflow-y-auto h-full flex flex-col space-y-6">
+            <div className="lg:col-span-3 glass-card p-6 rounded-lg flex flex-col space-y-6">
               {sipResult && (
                 <>
                   <div className="grid grid-cols-1 md:grid-cols-4 gap-4 border-b border-light-border dark:border-dark-border pb-4 font-mono text-center">
@@ -1186,8 +1186,8 @@ export const MutualFundsView: React.FC<MutualFundsViewProps> = ({ targetCurrency
 
         {/* SUBVIEW: LUMPSUM CALCULATOR */}
         {activeSubTab === "lumpsum" && (
-          <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 h-full overflow-hidden">
-            <div className="lg:col-span-1 glass-card p-4 rounded-lg flex flex-col space-y-4 overflow-y-auto h-full pr-1">
+          <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 h-auto">
+            <div className="lg:col-span-1 glass-card p-4 rounded-lg flex flex-col space-y-4 lg:sticky lg:top-20 h-fit pr-1">
               <h3 className="text-xs font-black uppercase text-brand-primary tracking-wider border-b border-light-border dark:border-dark-border pb-2.5">Lumpsum Inputs</h3>
               
               <div className="space-y-4 text-xs">
@@ -1232,7 +1232,7 @@ export const MutualFundsView: React.FC<MutualFundsViewProps> = ({ targetCurrency
               </div>
             </div>
 
-            <div className="lg:col-span-3 glass-card p-6 rounded-lg overflow-y-auto h-full flex flex-col space-y-6">
+            <div className="lg:col-span-3 glass-card p-6 rounded-lg flex flex-col space-y-6">
               {lumpResult && (
                 <>
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4 border-b border-light-border dark:border-dark-border pb-4 font-mono text-center">
@@ -1282,7 +1282,7 @@ export const MutualFundsView: React.FC<MutualFundsViewProps> = ({ targetCurrency
 
         {/* SUBVIEW: WATCHLIST */}
         {activeSubTab === "watchlist" && (
-          <div className="space-y-6 h-full overflow-y-auto pr-1 pb-6">
+          <div className="space-y-6 pr-1 pb-6">
             {watchlist.length === 0 ? (
               <div className="glass-card rounded-xl p-16 flex flex-col items-center justify-center text-center gap-4">
                 <div className="p-5 bg-brand-primary/10 rounded-full">

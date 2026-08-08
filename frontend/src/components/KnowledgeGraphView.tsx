@@ -122,7 +122,7 @@ export const KnowledgeGraphView: React.FC<KnowledgeGraphViewProps> = ({ ticker, 
   const viewBounds = `${viewX} ${viewY} ${viewWidth} ${viewHeight}`;
 
   return (
-    <div className="space-y-6 overflow-y-auto h-full pr-2">
+    <div className="space-y-6 pb-6">
       {/* Search & Filter Top Bar */}
       <div className="glass-card p-4 rounded-lg grid grid-cols-1 md:grid-cols-3 gap-4 items-center shrink-0">
         <div className="relative">

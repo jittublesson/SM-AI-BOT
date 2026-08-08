@@ -48,9 +48,9 @@ export const StrategyBuilderView: React.FC<StrategyBuilderViewProps> = ({ target
   };
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-4 gap-6 h-full overflow-hidden">
+    <div className="grid grid-cols-1 md:grid-cols-4 gap-6 h-auto">
       {/* Strategy parameters sidebar */}
-      <div className="md:col-span-1 glass-card p-4 rounded-lg flex flex-col h-full overflow-y-auto pr-1">
+      <div className="md:col-span-1 glass-card p-4 rounded-lg flex flex-col md:sticky md:top-20 h-fit pr-1">
         <h2 className="text-sm font-bold flex items-center gap-2 border-b border-light-border dark:border-dark-border pb-3 mb-4">
           <Code className="text-brand-primary w-5 h-5" />
           Quant Strategy Setup
@@ -119,7 +119,7 @@ export const StrategyBuilderView: React.FC<StrategyBuilderViewProps> = ({ target
       </div>
 
       {/* Script code & performance results */}
-      <div className="md:col-span-3 glass-card p-6 rounded-lg overflow-y-auto h-full flex flex-col space-y-6">
+      <div className="md:col-span-3 glass-card p-6 rounded-lg flex flex-col space-y-6">
         {results ? (
           <>
             {/* Header metrics */}

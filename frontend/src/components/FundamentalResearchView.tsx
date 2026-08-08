@@ -525,7 +525,7 @@ export const FundamentalResearchView: React.FC<FundamentalResearchViewProps> = (
   );
 
   return (
-    <div className="flex h-full w-full overflow-hidden relative">
+    <div className="flex w-full relative">
       
       {/* Toast notification */}
       {toastMsg && (
@@ -536,7 +536,7 @@ export const FundamentalResearchView: React.FC<FundamentalResearchViewProps> = (
       )}
 
       {/* Main Workspace Body */}
-      <div className="flex-1 flex flex-col space-y-6 h-full overflow-y-auto pr-2">
+      <div className="flex-1 flex flex-col space-y-6 pr-2">
         
         {/* 1. Header Information Banner & Data Quality Indicators */}
         {data && (
@@ -1354,7 +1354,7 @@ export const FundamentalResearchView: React.FC<FundamentalResearchViewProps> = (
 
       {/* AI RAG Statement Assistant Drawer (Right Sidebar) */}
       {chatOpen && (
-        <aside className="w-80 border-l border-light-border dark:border-dark-border bg-white dark:bg-[#070b13] flex flex-col h-full shrink-0 z-50">
+        <aside className="w-80 border-l border-light-border dark:border-dark-border bg-white dark:bg-[#070b13] flex flex-col shrink-0 z-50 sticky top-16 h-[calc(100vh-64px)]">
           <div className="p-4 border-b border-light-border dark:border-dark-border flex justify-between items-center bg-black/5 dark:bg-white/5">
             <span className="text-xs font-black uppercase text-brand-primary tracking-wider flex items-center gap-1">
               <Sparkles className="w-4 h-4 text-brand-primary" />

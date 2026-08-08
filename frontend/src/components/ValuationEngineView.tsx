@@ -48,9 +48,9 @@ export const ValuationEngineView: React.FC<ValuationEngineViewProps> = ({ ticker
   }, [ticker, params]);
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-4 gap-6 h-full overflow-hidden">
+    <div className="grid grid-cols-1 md:grid-cols-4 gap-6 h-auto">
       {/* Parameter Sliders Sidebar */}
-      <div className="md:col-span-1 glass-card p-4 rounded-lg flex flex-col h-full overflow-y-auto pr-1">
+      <div className="md:col-span-1 glass-card p-4 rounded-lg flex flex-col md:sticky md:top-20 h-fit pr-1">
         <h2 className="text-sm font-bold flex items-center gap-2 border-b border-light-border dark:border-dark-border pb-3 mb-4">
           <Landmark className="text-brand-primary w-5 h-5" />
           Valuation Assumptions
@@ -136,7 +136,7 @@ export const ValuationEngineView: React.FC<ValuationEngineViewProps> = ({ ticker
       </div>
 
       {/* Main Intrinsic outputs & sensitivity matrix */}
-      <div className="md:col-span-3 glass-card p-6 rounded-lg overflow-y-auto h-full flex flex-col space-y-6">
+      <div className="md:col-span-3 glass-card p-6 rounded-lg flex flex-col space-y-6">
         {loading ? (
           <div className="h-full flex items-center justify-center text-brand-muted text-xs">
             Running multi-model pricing streams...

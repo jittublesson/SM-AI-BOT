@@ -214,7 +214,7 @@ export const WatchlistView: React.FC<WatchlistViewProps> = ({ onSelectTicker, ta
   };
 
   return (
-    <div className="space-y-6 overflow-y-auto h-full pr-2">
+    <div className="space-y-6 pb-6">
 
       {/* Header row */}
       <div className="flex items-center justify-between">

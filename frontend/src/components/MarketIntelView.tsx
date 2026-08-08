@@ -46,7 +46,7 @@ export const MarketIntelView: React.FC<MarketIntelViewProps> = ({ onSelectTicker
   const breadth = data?.market_breadth;
 
   return (
-    <div className="flex flex-col h-full overflow-hidden space-y-4">
+    <div className="flex flex-col space-y-4">
       {/* Header */}
       <div className="flex items-center justify-between shrink-0">
         <div>
@@ -128,7 +128,7 @@ export const MarketIntelView: React.FC<MarketIntelViewProps> = ({ onSelectTicker
       </div>
 
       {/* Tab Content */}
-      <div className="flex-1 overflow-y-auto">
+      <div className="flex-1">
 
         {/* ---- OVERVIEW TAB ---- */}
         {activeTab === "overview" && (

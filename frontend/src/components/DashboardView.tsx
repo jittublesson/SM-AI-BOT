@@ -174,7 +174,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onSelectTicker, ta
 
   if (isMobile) {
     return (
-      <div className="flex flex-col space-y-5 h-full overflow-y-auto pb-8 px-1 select-none">
+      <div className="flex flex-col space-y-5 pb-8 px-1 select-none">
         {/* 1. Portfolio Net Worth & Daily Gains Card */}
         <div className="glass-card p-5 rounded-2xl bg-gradient-to-br from-brand-primary/5 via-transparent to-transparent border border-light-border dark:border-dark-border">
           <span className="text-[9px] uppercase font-bold tracking-widest text-brand-muted block">Portfolio Net Worth</span>
@@ -426,7 +426,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onSelectTicker, ta
   }
 
   return (
-    <div className="flex flex-col space-y-6 h-full overflow-y-auto pr-2 pb-6">
+    <div className="flex flex-col space-y-6 pb-6">
       
       {/* HEADER HERO AREA: Portfolio Valuation & Market Status */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
