@@ -1,9 +1,10 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { 
   Landmark, TrendingUp, Info, HelpCircle, ArrowUpRight, Award, 
   DollarSign, ShieldAlert, Cpu, Users, Calendar, Grid, FileText, Download, BookOpen, Check,
   UserCheck, PieChart, GitBranch, Star, AlertTriangle, BarChart2, Sparkles, Trash2,
-  LayoutGrid, Maximize2, Minimize2, ChevronUp, ChevronDown, Save, Eye, EyeOff, RotateCcw
+  LayoutGrid, Maximize2, Minimize2, ChevronUp, ChevronDown, Save, Eye, EyeOff, RotateCcw,
+  ChevronLeft, ChevronRight
 } from "lucide-react";
 import { formatPrice, formatFinancialValue, convertCurrency, CURRENCY_SYMBOLS } from "../utils/currency";
 import { TradingViewChart } from "./TradingViewChart";
@@ -20,6 +21,18 @@ export const FundamentalResearchView: React.FC<FundamentalResearchViewProps> = (
   const [activeSubTab, setActiveSubTab] = useState<string>("overview");
   const [activeExplainMetric, setActiveExplainMetric] = useState<string>("roe");
   const [noteText, setNoteText] = useState("");
+  
+  const tabsRef = useRef<HTMLDivElement>(null);
+
+  const scrollTabs = (direction: "left" | "right") => {
+    if (tabsRef.current) {
+      const scrollAmount = 250;
+      tabsRef.current.scrollBy({
+        left: direction === "left" ? -scrollAmount : scrollAmount,
+        behavior: "smooth"
+      });
+    }
+  };
   
   // Modular Report Generator States
   const [selectedModules, setSelectedModules] = useState<Record<string, boolean>>({
@@ -571,40 +584,63 @@ export const FundamentalResearchView: React.FC<FundamentalResearchViewProps> = (
         )}
 
         {/* 2. Institutional Sub-tab Navigation */}
-        <div className="flex border-b border-light-border dark:border-dark-border pb-1 gap-1 shrink-0 overflow-x-auto">
-          {[
-            { id: "grid_workspace",     label: "Grid Workspace (Drag & Drop)", icon: LayoutGrid },
-            { id: "overview",          label: "Overview",                  icon: TrendingUp },
-            { id: "charting",          label: "Technical Chart",           icon: BarChart2 },
-            { id: "financials",        label: "Financials",                icon: Landmark },
-            { id: "quarterly",         label: "Quarterly Results",         icon: BarChart2 },
-            { id: "segments",          label: "Segments",                  icon: Grid },
-            { id: "valuation_risks",   label: "Valuation & Risks",         icon: ShieldAlert },
-            { id: "management",        label: "Management",                icon: UserCheck },
-            { id: "shareholding",      label: "Ownership",                 icon: PieChart },
-            { id: "corporate_actions", label: "Corporate Actions",         icon: GitBranch },
-            { id: "credit_ratings",    label: "Credit Ratings",            icon: Star },
-            { id: "governance",        label: "Governance",                icon: Users },
-            { id: "notes",             label: "Workspace Notes",           icon: BookOpen },
-            { id: "ai_thesis",         label: "Modular Report",            icon: Download }
-          ].map((tab) => {
-            const Icon = tab.icon;
-            const isActive = activeSubTab === tab.id;
-            return (
-              <button
-                key={tab.id}
-                onClick={() => setActiveSubTab(tab.id)}
-                className={`flex items-center gap-1.5 px-2.5 py-2 text-[10px] font-bold transition-all border-b-2 shrink-0 uppercase tracking-wide ${
-                  isActive 
-                    ? "border-brand-primary text-brand-primary" 
-                    : "border-transparent text-brand-muted hover:text-slate-800 dark:hover:text-white"
-                }`}
-              >
-                <Icon className="w-3.5 h-3.5" />
-                <span>{tab.label}</span>
-              </button>
-            );
-          })}
+        <div className="relative flex items-center border-b border-light-border dark:border-dark-border pb-1 shrink-0 group">
+          <button
+            onClick={() => scrollTabs("left")}
+            className="absolute left-0 z-10 p-1.5 rounded-full bg-white/90 dark:bg-black/90 border border-light-border dark:border-dark-border text-brand-muted hover:text-slate-800 dark:hover:text-white shadow-md opacity-0 group-hover:opacity-100 focus:opacity-100 hover:scale-110 transition-all duration-200"
+            style={{ transform: "translateX(-25%)" }}
+            title="Scroll Left"
+          >
+            <ChevronLeft className="w-3.5 h-3.5" />
+          </button>
+
+          <div
+            ref={tabsRef}
+            className="flex gap-1 overflow-x-auto w-full no-scrollbar scroll-smooth"
+          >
+            {[
+              { id: "grid_workspace",     label: "Grid Workspace (Drag & Drop)", icon: LayoutGrid },
+              { id: "overview",          label: "Overview",                  icon: TrendingUp },
+              { id: "charting",          label: "Technical Chart",           icon: BarChart2 },
+              { id: "financials",        label: "Financials",                icon: Landmark },
+              { id: "quarterly",         label: "Quarterly Results",         icon: BarChart2 },
+              { id: "segments",          label: "Segments",                  icon: Grid },
+              { id: "valuation_risks",   label: "Valuation & Risks",         icon: ShieldAlert },
+              { id: "management",        label: "Management",                icon: UserCheck },
+              { id: "shareholding",      label: "Ownership",                 icon: PieChart },
+              { id: "corporate_actions", label: "Corporate Actions",         icon: GitBranch },
+              { id: "credit_ratings",    label: "Credit Ratings",            icon: Star },
+              { id: "governance",        label: "Governance",                icon: Users },
+              { id: "notes",             label: "Workspace Notes",           icon: BookOpen },
+              { id: "ai_thesis",         label: "Modular Report",            icon: Download }
+            ].map((tab) => {
+              const Icon = tab.icon;
+              const isActive = activeSubTab === tab.id;
+              return (
+                <button
+                  key={tab.id}
+                  onClick={() => setActiveSubTab(tab.id)}
+                  className={`flex items-center gap-1.5 px-2.5 py-2 text-[10px] font-bold transition-all border-b-2 shrink-0 uppercase tracking-wide ${
+                    isActive 
+                      ? "border-brand-primary text-brand-primary" 
+                      : "border-transparent text-brand-muted hover:text-slate-800 dark:hover:text-white"
+                  }`}
+                >
+                  <Icon className="w-3.5 h-3.5" />
+                  <span>{tab.label}</span>
+                </button>
+              );
+            })}
+          </div>
+
+          <button
+            onClick={() => scrollTabs("right")}
+            className="absolute right-0 z-10 p-1.5 rounded-full bg-white/90 dark:bg-black/90 border border-light-border dark:border-dark-border text-brand-muted hover:text-slate-800 dark:hover:text-white shadow-md opacity-0 group-hover:opacity-100 focus:opacity-100 hover:scale-110 transition-all duration-200"
+            style={{ transform: "translateX(25%)" }}
+            title="Scroll Right"
+          >
+            <ChevronRight className="w-3.5 h-3.5" />
+          </button>
         </div>
 
         {/* 3. Sub-tab Content Area */}

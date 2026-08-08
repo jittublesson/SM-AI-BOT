@@ -171,7 +171,14 @@ select {
   .responsive-px { padding-left: 1.25rem;  padding-right: 1.25rem; }
   .responsive-py { padding-top: 1rem;      padding-bottom: 1rem; }
 }
-@media (min-width: 1024px) {
-  .responsive-px { padding-left: 1.75rem;  padding-right: 1.75rem; }
-  .responsive-py { padding-top: 1.25rem;   padding-bottom: 1.25rem; }
+
+/* Hide scrollbar for Chrome, Safari and Opera */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
 }
+/* Hide scrollbar for IE, Edge and Firefox */
+.no-scrollbar {
+  -ms-overflow-style: none;  /* IE and Edge */
+  scrollbar-width: none;  /* Firefox */
+}
+
