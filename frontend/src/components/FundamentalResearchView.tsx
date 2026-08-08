@@ -262,19 +262,19 @@ export const FundamentalResearchView: React.FC<FundamentalResearchViewProps> = (
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-xs font-mono">
             <div className="p-3 bg-black/5 dark:bg-white/5 rounded-xl">
               <span className="text-[9px] text-brand-muted uppercase font-sans font-bold">Tracking Error</span>
-              <span className="font-bold text-brand-primary mt-1 block">{data.profile.info.etf_details.tracking_error}%</span>
+              <span className="font-bold text-brand-primary mt-1 block">{data.profile?.info?.etf_details?.tracking_error}%</span>
             </div>
             <div className="p-3 bg-black/5 dark:bg-white/5 rounded-xl">
               <span className="text-[9px] text-brand-muted uppercase font-sans font-bold">Expense Ratio</span>
-              <span className="font-bold text-brand-primary mt-1 block">{data.profile.info.etf_details.expense_ratio}%</span>
+              <span className="font-bold text-brand-primary mt-1 block">{data.profile?.info?.etf_details?.expense_ratio}%</span>
             </div>
             <div className="p-3 bg-black/5 dark:bg-white/5 rounded-xl">
               <span className="text-[9px] text-brand-muted uppercase font-sans font-bold">Market Liquidity</span>
-              <span className="font-bold text-brand-secondary mt-1 block">{data.profile.info.etf_details.liquidity}</span>
+              <span className="font-bold text-brand-secondary mt-1 block">{data.profile?.info?.etf_details?.liquidity}</span>
             </div>
             <div className="p-3 bg-black/5 dark:bg-white/5 rounded-xl">
               <span className="text-[9px] text-brand-muted uppercase font-sans font-bold">Premium / Discount</span>
-              <span className="font-bold text-brand-primary mt-1 block">{data.profile.info.etf_details.premium_discount}</span>
+              <span className="font-bold text-brand-primary mt-1 block">{data.profile?.info?.etf_details?.premium_discount}</span>
             </div>
           </div>
         </div>
@@ -538,50 +538,66 @@ export const FundamentalResearchView: React.FC<FundamentalResearchViewProps> = (
       {/* Main Workspace Body */}
       <div className="flex-1 flex flex-col space-y-6 pr-2">
         
-        {/* 1. Header Information Banner & Data Quality Indicators */}
-        {data && (
-          <div className="glass-card p-6 rounded-lg grid grid-cols-1 md:grid-cols-4 gap-6 shrink-0 border border-light-border dark:border-dark-border">
-            <div className="md:col-span-3 space-y-3">
-              <div className="flex items-center gap-2">
-                <h1 className="text-xl font-bold text-slate-800 dark:text-white font-sans">
-                  {data.profile.info.name} ({data.profile.info.ticker})
-                </h1>
-                <span className="text-[10px] px-2 py-0.5 rounded font-mono uppercase bg-brand-primary/10 text-brand-primary font-bold">
-                  {data.profile.info.sector}
-                </span>
-                <span className="text-[9px] px-1.5 py-0.5 rounded font-mono uppercase bg-brand-secondary/10 text-brand-secondary font-bold">
-                  Reported in: {sourceCurrency}
-                </span>
-              </div>
-              <p className="text-xs text-brand-muted leading-relaxed max-w-4xl">
-                {data.profile.info.description}
-              </p>
-            </div>
-            
-            {/* Data Quality & Reliability Dashboard */}
-            <div className="p-4 bg-light-bg dark:bg-[#070a10] border border-light-border dark:border-dark-border rounded-lg flex flex-col justify-between">
-              <div>
-                <span className="text-[9px] text-brand-muted uppercase font-bold block">Current Price (NSE/BSE)</span>
-                <span className="text-sm font-mono font-black text-brand-primary mt-1 block">
-                  {formatPrice(data.profile.info.price, sourceCurrency, targetCurrency, true)}
-                </span>
-              </div>
-              <div className="text-[9px] text-brand-muted border-t border-light-border dark:border-dark-border pt-2 mt-2 font-mono space-y-1">
-                <div className="flex justify-between">
-                  <span>Source: <span className="font-extrabold text-brand-secondary">{data.profile.metadata?.data_source || data.profile.data_source}</span></span>
-                </div>
-                <div className="flex justify-between">
-                  <span>Reliability: <span className="font-extrabold text-brand-secondary">{data.profile.metadata?.reliability || "High"}</span></span>
-                  <span>Status: <span className={`font-extrabold ${data.profile.metadata?.market_status === "Open" ? "text-green-500" : "text-gray-400"}`}>{data.profile.metadata?.market_status || "Closed"}</span></span>
-                </div>
-                <div className="flex justify-between text-[8.5px]">
-                  <span>Currency: <span className="font-bold">{data.profile.metadata?.currency || sourceCurrency}</span></span>
-                  <span>Updated: <span className="font-bold text-[8px]">{data.profile.metadata?.last_updated || "Live"}</span></span>
-                </div>
-              </div>
-            </div>
+        {data && data.profile?.error_state ? (
+          <div className="glass-card p-8 rounded-lg border border-brand-danger/25 bg-brand-danger/5 space-y-4 text-center my-12 max-w-xl mx-auto shrink-0">
+            <AlertTriangle className="w-10 h-10 text-brand-danger mx-auto" />
+            <h2 className="text-base font-black text-slate-800 dark:text-white uppercase tracking-wider">Live Data Stream Interrupted</h2>
+            <p className="text-xs text-brand-muted leading-relaxed">
+              {data.profile.error_message || "Live market data for this ticker could not be retrieved from Yahoo Finance."}
+            </p>
+            <button
+              onClick={fetchProfile}
+              className="px-4 py-2 bg-brand-primary hover:bg-brand-primary/95 text-white text-xs font-bold uppercase rounded transition-colors"
+            >
+              Retry Connection
+            </button>
           </div>
-        )}
+        ) : (
+          <>
+            {/* 1. Header Information Banner & Data Quality Indicators */}
+            {data && (
+              <div className="glass-card p-6 rounded-lg grid grid-cols-1 md:grid-cols-4 gap-6 shrink-0 border border-light-border dark:border-dark-border">
+                <div className="md:col-span-3 space-y-3">
+                  <div className="flex items-center gap-2">
+                    <h1 className="text-xl font-bold text-slate-800 dark:text-white font-sans">
+                      {data.profile?.info?.name || ticker} ({data.profile?.info?.ticker || ticker})
+                    </h1>
+                    <span className="text-[10px] px-2 py-0.5 rounded font-mono uppercase bg-brand-primary/10 text-brand-primary font-bold">
+                      {data.profile?.info?.sector || "Equity"}
+                    </span>
+                    <span className="text-[9px] px-1.5 py-0.5 rounded font-mono uppercase bg-brand-secondary/10 text-brand-secondary font-bold">
+                      Reported in: {sourceCurrency}
+                    </span>
+                  </div>
+                  <p className="text-xs text-brand-muted leading-relaxed max-w-4xl">
+                    {data.profile?.info?.description}
+                  </p>
+                </div>
+            
+                {/* Data Quality & Reliability Dashboard */}
+                <div className="p-4 bg-light-bg dark:bg-[#070a10] border border-light-border dark:border-dark-border rounded-lg flex flex-col justify-between">
+                  <div>
+                    <span className="text-[9px] text-brand-muted uppercase font-bold block">Current Price (NSE/BSE)</span>
+                    <span className="text-sm font-mono font-black text-brand-primary mt-1 block">
+                      {formatPrice(data.profile?.info?.price || 0, sourceCurrency, targetCurrency, true)}
+                    </span>
+                  </div>
+                  <div className="text-[9px] text-brand-muted border-t border-light-border dark:border-dark-border pt-2 mt-2 font-mono space-y-1">
+                    <div className="flex justify-between">
+                      <span>Source: <span className="font-extrabold text-brand-secondary">{data.profile?.metadata?.data_source || data.profile?.data_source || "Yahoo Finance"}</span></span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Reliability: <span className="font-extrabold text-brand-secondary">{data.profile?.metadata?.reliability || "High"}</span></span>
+                      <span>Status: <span className={`font-extrabold ${data.profile?.metadata?.market_status === "Open" ? "text-green-500" : "text-gray-400"}`}>{data.profile?.metadata?.market_status || "Closed"}</span></span>
+                    </div>
+                    <div className="flex justify-between text-[8.5px]">
+                      <span>Currency: <span className="font-bold">{data.profile?.metadata?.currency || sourceCurrency}</span></span>
+                      <span>Updated: <span className="font-bold text-[8px]">{data.profile?.metadata?.last_updated || "Live"}</span></span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
 
         {/* 2. Institutional Sub-tab Navigation */}
         <div className="sticky top-0 z-20 flex items-center border-b border-light-border dark:border-dark-border pb-1.5 shrink-0 group bg-white/95 dark:bg-[#070b13]/95 backdrop-blur-sm pt-2">
@@ -779,7 +795,7 @@ export const FundamentalResearchView: React.FC<FundamentalResearchViewProps> = (
               {/* TAB: OVERVIEW */}
               {activeSubTab === "overview" && (
                 <div className="space-y-6">
-                  {data.profile.info.etf_details?.is_etf && (
+                  {data.profile?.info?.etf_details?.is_etf && (
                     <div className="glass-card p-5 rounded-lg border border-brand-primary/20 bg-brand-primary/5 space-y-3">
                       <h3 className="text-xs font-black uppercase text-brand-primary tracking-wider flex items-center gap-1.5">
                         <Sparkles className="w-4 h-4 text-brand-primary animate-pulse" />
@@ -788,19 +804,19 @@ export const FundamentalResearchView: React.FC<FundamentalResearchViewProps> = (
                       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-xs font-mono">
                         <div className="p-3 bg-black/5 dark:bg-white/5 rounded-xl">
                           <span className="text-[9px] text-brand-muted uppercase font-sans font-bold">Tracking Error</span>
-                          <span className="font-bold text-brand-primary mt-1 block">{data.profile.info.etf_details.tracking_error}%</span>
+                          <span className="font-bold text-brand-primary mt-1 block">{data.profile?.info?.etf_details?.tracking_error}%</span>
                         </div>
                         <div className="p-3 bg-black/5 dark:bg-white/5 rounded-xl">
                           <span className="text-[9px] text-brand-muted uppercase font-sans font-bold">Expense Ratio</span>
-                          <span className="font-bold text-brand-primary mt-1 block">{data.profile.info.etf_details.expense_ratio}%</span>
+                          <span className="font-bold text-brand-primary mt-1 block">{data.profile?.info?.etf_details?.expense_ratio}%</span>
                         </div>
                         <div className="p-3 bg-black/5 dark:bg-white/5 rounded-xl">
                           <span className="text-[9px] text-brand-muted uppercase font-sans font-bold">Market Liquidity</span>
-                          <span className="font-bold text-brand-secondary mt-1 block">{data.profile.info.etf_details.liquidity}</span>
+                          <span className="font-bold text-brand-secondary mt-1 block">{data.profile?.info?.etf_details?.liquidity}</span>
                         </div>
                         <div className="p-3 bg-black/5 dark:bg-white/5 rounded-xl">
                           <span className="text-[9px] text-brand-muted uppercase font-sans font-bold">Premium / Discount</span>
-                          <span className="font-bold text-brand-primary mt-1 block">{data.profile.info.etf_details.premium_discount}</span>
+                          <span className="font-bold text-brand-primary mt-1 block">{data.profile?.info?.etf_details?.premium_discount}</span>
                         </div>
                       </div>
                     </div>
@@ -1153,7 +1169,7 @@ export const FundamentalResearchView: React.FC<FundamentalResearchViewProps> = (
                       Complete Shareholding Analysis
                     </h2>
                     
-                    {data.profile.shareholding_detail && (
+                    {data.profile?.shareholding_detail && (
                       <div className="p-3 bg-brand-primary/5 border border-brand-primary/10 rounded-lg text-xs flex justify-between items-center font-mono">
                         <span>Accumulation Signal: <span className="font-bold text-brand-secondary">{data.profile.shareholding_detail.accumulation_signal}</span></span>
                         <span>Promoter QoQ: <span className="font-bold text-slate-700 dark:text-slate-300">{data.profile.shareholding_detail.promoter_change_qoq}</span></span>
@@ -1163,12 +1179,12 @@ export const FundamentalResearchView: React.FC<FundamentalResearchViewProps> = (
 
                     <div className="space-y-4 pt-2">
                       {[
-                        { label: "Promoter Holding", value: data.profile.shareholding_detail?.promoter || data.profile.info?.promoter_holding || 50.3, color: "bg-brand-primary" },
-                        { label: "FII Holding", value: data.profile.shareholding_detail?.fii || data.profile.info?.fii_holding || 22.4, color: "bg-brand-secondary" },
-                        { label: "DII Holding", value: data.profile.shareholding_detail?.dii || data.profile.info?.dii_holding || 18.2, color: "bg-brand-warning" },
-                        { label: "Mutual Funds", value: data.profile.shareholding_detail?.mutual_funds || data.profile.info?.mutual_fund_holding || 8.5, color: "bg-brand-primary" },
-                        { label: "Insurance", value: data.profile.shareholding_detail?.insurance || 3.4, color: "bg-brand-secondary" },
-                        { label: "Retail / Public", value: data.profile.shareholding_detail?.retail || data.profile.info?.public_holding || 10.7, color: "bg-brand-danger" },
+                        { label: "Promoter Holding", value: data.profile?.shareholding_detail?.promoter || data.profile?.info?.promoter_holding || 50.3, color: "bg-brand-primary" },
+                        { label: "FII Holding", value: data.profile?.shareholding_detail?.fii || data.profile?.info?.fii_holding || 22.4, color: "bg-brand-secondary" },
+                        { label: "DII Holding", value: data.profile?.shareholding_detail?.dii || data.profile?.info?.dii_holding || 18.2, color: "bg-brand-warning" },
+                        { label: "Mutual Funds", value: data.profile?.shareholding_detail?.mutual_funds || data.profile?.info?.mutual_fund_holding || 8.5, color: "bg-brand-primary" },
+                        { label: "Insurance", value: data.profile?.shareholding_detail?.insurance || 3.4, color: "bg-brand-secondary" },
+                        { label: "Retail / Public", value: data.profile?.shareholding_detail?.retail || data.profile?.info?.public_holding || 10.7, color: "bg-brand-danger" },
                       ].map((s, i) => (
                         <div key={i}>
                           <div className="flex justify-between text-xs mb-1.5">
@@ -1340,6 +1356,8 @@ export const FundamentalResearchView: React.FC<FundamentalResearchViewProps> = (
             </div>
           )}
         </div>
+          </>
+        )}
 
       </div>
 
