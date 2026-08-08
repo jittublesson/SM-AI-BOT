@@ -584,7 +584,7 @@ export const FundamentalResearchView: React.FC<FundamentalResearchViewProps> = (
         )}
 
         {/* 2. Institutional Sub-tab Navigation */}
-        <div className="relative flex items-center border-b border-light-border dark:border-dark-border pb-1 shrink-0 group">
+        <div className="sticky top-0 z-20 flex items-center border-b border-light-border dark:border-dark-border pb-1.5 shrink-0 group bg-white/95 dark:bg-[#070b13]/95 backdrop-blur-sm pt-2">
           <button
             onClick={() => scrollTabs("left")}
             className="absolute left-0 z-10 p-1.5 rounded-full bg-white/90 dark:bg-black/90 border border-light-border dark:border-dark-border text-brand-muted hover:text-slate-800 dark:hover:text-white shadow-md opacity-0 group-hover:opacity-100 focus:opacity-100 hover:scale-110 transition-all duration-200"
@@ -644,7 +644,7 @@ export const FundamentalResearchView: React.FC<FundamentalResearchViewProps> = (
         </div>
 
         {/* 3. Sub-tab Content Area */}
-        <div className="flex-1 overflow-y-auto pr-1 pb-4">
+        <div className="pr-1 pb-4">
           {loading ? (
             <div className="flex items-center justify-center py-40 text-brand-muted text-xs font-mono">
               Fetching institutional indices...
