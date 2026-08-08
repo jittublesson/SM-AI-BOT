@@ -516,7 +516,7 @@ export const FundamentalResearchView: React.FC<FundamentalResearchViewProps> = (
               onChange={() => handleModuleToggle(modKey)}
               className="rounded text-brand-primary border-light-border dark:border-dark-border focus:ring-brand-primary"
             />
-            <span className="capitalize">{modKey.replace("_", " ")}</span>
+            <span className="capitalize">{modKey?.replace ? modKey.replace("_", " ") : modKey}</span>
           </label>
         ))}
       </div>
@@ -917,7 +917,7 @@ export const FundamentalResearchView: React.FC<FundamentalResearchViewProps> = (
                                 : "text-brand-muted hover:bg-black/5 dark:hover:bg-white/5"
                             }`}
                           >
-                            {key.replace("_", "/")}
+                            {key?.replace ? key.replace("_", "/") : key}
                           </button>
                         ))}
                       </div>
@@ -1370,7 +1370,7 @@ export const FundamentalResearchView: React.FC<FundamentalResearchViewProps> = (
                             onChange={() => handleModuleToggle(modKey)}
                             className="rounded text-brand-primary border-light-border dark:border-dark-border focus:ring-brand-primary"
                           />
-                          <span className="capitalize">{modKey.replace("_", " ")}</span>
+                          <span className="capitalize">{modKey?.replace ? modKey.replace("_", " ") : modKey}</span>
                         </label>
                       ))}
                     </div>

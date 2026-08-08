@@ -45,8 +45,8 @@ export function formatIndianNumber(value: number): string {
   if (numStr.length > 3) {
     const lastThree = numStr.slice(-3);
     const remaining = numStr.slice(0, -3);
-    const groupedRemaining = remaining.replace(/\B(?=(\d{2})+(?!\d))/g, ",");
-    numStr = groupedRemaining + "," + lastThree;
+    const groupedRemaining = remaining?.replace ? remaining.replace(/\B(?=(\d{2})+(?!\d))/g, ",") : remaining;
+    numStr = (groupedRemaining || "") + "," + lastThree;
   }
   
   return sign + numStr + decStr;

@@ -247,7 +247,7 @@ export const MarketIntelView: React.FC<MarketIntelViewProps> = ({ onSelectTicker
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 {data?.sector_performance?.map((s: any, i: number) => {
                   const isUp = s.trend === "up";
-                  const pct = s.change ? parseFloat(s.change.replace("%", "").replace("+", "")) : 0;
+                  const pct = s.change?.replace ? parseFloat(s.change.replace("%", "").replace("+", "")) : 0;
                   const barWidth = Math.min(Math.abs(pct) * 15, 100);
                   const signalColor = s.signal === "Accumulate" || s.signal === "Overweight" ? "text-brand-secondary bg-brand-secondary/10" :
                     s.signal === "Underweight" || s.signal === "Reduce" ? "text-brand-danger bg-brand-danger/10" : "text-brand-muted bg-black/5 dark:bg-white/5";
