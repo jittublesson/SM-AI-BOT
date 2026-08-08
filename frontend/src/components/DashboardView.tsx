@@ -137,41 +137,11 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onSelectTicker, ta
     localStorage.setItem("wealthpilot_notes", JSON.stringify(updated));
   };
 
-  const topGainers = [
-    { ticker: "TCS.NS", name: "Tata Consultancy Services", priceVal: 3850.50, currency: "INR", change: "+3.45%", sector: "Technology" },
-    { ticker: "RELIANCE.NS", name: "Reliance Industries Ltd.", priceVal: 2450.75, currency: "INR", change: "+2.12%", sector: "Energy" },
-    { ticker: "HDFCBANK.NS", name: "HDFC Bank Ltd.", priceVal: 1650.40, currency: "INR", change: "+1.85%", sector: "Financials" },
-    { ticker: "INFY", name: "Infosys Ltd.", priceVal: 18.20, currency: "USD", change: "+1.35%", sector: "Technology" }
-  ];
-
-  const topLosers = [
-    { ticker: "TSLA", name: "Tesla Inc.", priceVal: 180.20, currency: "USD", change: "-3.14%", sector: "Automotive" },
-    { ticker: "AAPL", name: "Apple Inc.", priceVal: 210.50, currency: "USD", change: "-1.80%", sector: "Technology" },
-    { ticker: "TATAMOTORS.NS", name: "Tata Motors Ltd.", priceVal: 980.10, currency: "INR", change: "-1.45%", sector: "Automotive" },
-    { ticker: "WIPRO.NS", name: "Wipro Ltd.", priceVal: 485.45, currency: "INR", change: "-0.95%", sector: "Technology" }
-  ];
-
-  const mostActive = [
-    { ticker: "RELIANCE.NS", name: "Reliance Industries", volume: "6.5M shares", change: "+2.12%" },
-    { ticker: "TATASTEEL.NS", name: "Tata Steel Ltd.", volume: "12.4M shares", change: "+0.85%" },
-    { ticker: "HDFCBANK.NS", name: "HDFC Bank Ltd.", volume: "5.8M shares", change: "+1.85%" },
-    { ticker: "TATAMOTORS.NS", name: "Tata Motors Ltd.", volume: "8.2M shares", change: "-1.45%" }
-  ];
-
-  const trendingStocks = [
-    { ticker: "NIPPON_ETF", name: "Nifty 50 BeES ETF", volume: "High Volume Spike", change: "+0.54%" },
-    { ticker: "ADANIPORTS.NS", name: "Adani Ports & SEZ", volume: "Brokerage Upgrade", change: "+3.10%" },
-    { ticker: "SUNPHARMA.NS", name: "Sun Pharmaceutical", volume: "New FDA Approval", change: "+2.45%" }
-  ];
-
-  const sectorHeatmap = [
-    { name: "Tech", change: "+2.1%", trend: "up", signal: "Strong Acc" },
-    { name: "Banks", change: "+1.6%", trend: "up", signal: "Steady Acc" },
-    { name: "Pharma", change: "+1.2%", trend: "up", signal: "Selective" },
-    { name: "Auto", change: "-0.4%", trend: "down", signal: "Neutral" },
-    { name: "Energy", change: "+0.8%", trend: "up", signal: "Neutral" },
-    { name: "Metals", change: "-1.1%", trend: "down", signal: "Reduce" }
-  ];
+  const topGainers = macroData?.top_gainers && macroData.top_gainers.length > 0 ? macroData.top_gainers : [];
+  const topLosers = macroData?.top_losers && macroData.top_losers.length > 0 ? macroData.top_losers : [];
+  const mostActive = macroData?.most_active && macroData.most_active.length > 0 ? macroData.most_active : [];
+  const trendingStocks = macroData?.trending && macroData.trending.length > 0 ? macroData.trending : [];
+  const sectorHeatmap = macroData?.sector_heatmap && macroData.sector_heatmap.length > 0 ? macroData.sector_heatmap : [];
 
   const handleQuickAddWatchlist = async (ticker: string, name: string, sector: string) => {
     try {
@@ -240,7 +210,12 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onSelectTicker, ta
 
         {/* 3. Market Overview (Indian Indices) */}
         <div className="space-y-2">
-          <span className="text-[8px] font-black uppercase text-brand-muted tracking-widest block">Indian Market Indices</span>
+          <div className="flex justify-between items-baseline">
+            <span className="text-[8px] font-black uppercase text-brand-muted tracking-widest block">Indian Market Indices</span>
+            {macroData?.data_source && (
+              <span className="text-[7px] font-mono text-brand-muted">Source: {macroData.data_source}</span>
+            )}
+          </div>
           <div className="grid grid-cols-2 gap-3">
             {macroData?.indian_indices?.map((index: any, idx: number) => {
               const isUp = index.change.startsWith("+");
@@ -248,7 +223,12 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onSelectTicker, ta
                 <div key={idx} className="glass-card p-3 rounded-xl flex flex-col justify-between border border-light-border dark:border-dark-border bg-black/5 dark:bg-white/5">
                   <span className="text-[9px] text-brand-muted uppercase font-bold tracking-wider block">{index.name}</span>
                   <div className="flex justify-between items-baseline mt-1.5">
-                    <span className="text-xs font-mono font-bold text-slate-800 dark:text-white">{index.price}</span>
+                    <div>
+                      <span className="text-xs font-mono font-bold text-slate-800 dark:text-white">{index.price}</span>
+                      {index.as_of && (
+                        <span className="text-[7.5px] text-brand-muted block font-mono">Last Close: {index.as_of}</span>
+                      )}
+                    </div>
                     <span className={`text-[8.5px] font-mono font-bold ${isUp ? "text-brand-secondary" : "text-brand-danger"}`}>{index.change}</span>
                   </div>
                 </div>
@@ -510,7 +490,12 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onSelectTicker, ta
       {/* INDEX TICKER TAPE */}
       <div className="space-y-4">
         <div>
-          <span className="text-[8px] font-black uppercase text-brand-muted tracking-widest block">Indian Indices</span>
+          <div className="flex justify-between items-baseline">
+            <span className="text-[8px] font-black uppercase text-brand-muted tracking-widest block">Indian Indices</span>
+            {macroData?.data_source && (
+              <span className="text-[7px] font-mono text-brand-muted">Source: {macroData.data_source}</span>
+            )}
+          </div>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-1.5">
             {macroData?.indian_indices?.map((index: any, idx: number) => {
               const isUp = index.change.startsWith("+");
@@ -519,6 +504,9 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onSelectTicker, ta
                   <div>
                     <span className="text-[10px] text-brand-muted uppercase font-bold tracking-wider block">{index.name}</span>
                     <span className="text-sm font-mono font-bold mt-1 block text-slate-800 dark:text-white">{index.price}</span>
+                    {index.as_of && (
+                      <span className="text-[7.5px] text-brand-muted block font-mono">Last Close: {index.as_of}</span>
+                    )}
                   </div>
                   <span className={`text-[10px] font-mono font-bold px-2 py-0.5 rounded ${
                     isUp ? "bg-brand-secondary/10 text-brand-secondary" : "bg-brand-danger/10 text-brand-danger"
@@ -532,7 +520,12 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onSelectTicker, ta
         </div>
 
         <div>
-          <span className="text-[8px] font-black uppercase text-brand-muted tracking-widest block">Global Market Snapshot</span>
+          <div className="flex justify-between items-baseline">
+            <span className="text-[8px] font-black uppercase text-brand-muted tracking-widest block">Global Market Snapshot</span>
+            {macroData?.data_source && (
+              <span className="text-[7px] font-mono text-brand-muted">Source: {macroData.data_source}</span>
+            )}
+          </div>
           <div className="grid grid-cols-2 md:grid-cols-6 gap-4 mt-1.5">
             {macroData?.global_markets?.map((index: any, idx: number) => {
               const isUp = index.change.startsWith("+");
@@ -541,6 +534,9 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onSelectTicker, ta
                   <div>
                     <span className="text-[9px] text-brand-muted uppercase font-bold tracking-wider block truncate max-w-[75px]">{index.name}</span>
                     <span className="text-xs font-mono font-bold mt-0.5 block text-slate-800 dark:text-white">{index.price}</span>
+                    {index.as_of && (
+                      <span className="text-[7px] text-brand-muted block font-mono truncate max-w-[75px]">{index.as_of}</span>
+                    )}
                   </div>
                   <span className={`text-[9px] font-mono font-bold px-1.5 py-0.5 rounded ${
                     isUp ? "bg-brand-secondary/10 text-brand-secondary" : "bg-brand-danger/10 text-brand-danger"
@@ -587,15 +583,20 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onSelectTicker, ta
             
             {/* Top Gainers & Losers Section */}
             <div className="glass-card p-5 rounded-2xl border border-light-border dark:border-dark-border space-y-4">
-              <div className="flex items-center gap-2 border-b border-light-border dark:border-dark-border pb-3">
-                <Landmark className="w-4 h-4 text-brand-secondary" />
-                <h3 className="text-xs font-black uppercase text-brand-primary tracking-wider">Top Daily Performers (NSE/BSE)</h3>
+              <div className="flex justify-between items-center border-b border-light-border dark:border-dark-border pb-3">
+                <div className="flex items-center gap-2">
+                  <Landmark className="w-4 h-4 text-brand-secondary" />
+                  <h3 className="text-xs font-black uppercase text-brand-primary tracking-wider">Top Daily Performers (NSE/BSE)</h3>
+                </div>
+                {macroData?.movers_source && (
+                  <span className="text-[7.5px] font-mono text-brand-muted">Source: {macroData.movers_source} · {macroData.movers_last_updated}</span>
+                )}
               </div>
               
               <div className="space-y-3">
                 <div className="grid grid-cols-1 gap-2">
                   <span className="text-[10px] font-extrabold uppercase tracking-widest text-brand-secondary">Gainers</span>
-                  {topGainers.slice(0, 3).map((g, idx) => (
+                  {topGainers.slice(0, 3).map((g: any, idx: number) => (
                     <div key={idx} className="flex justify-between items-center p-2 rounded bg-brand-secondary/5 border border-brand-secondary/10 hover:bg-brand-secondary/15 transition-all group">
                       <div onClick={() => onSelectTicker(g.ticker)} className="flex-1 cursor-pointer">
                         <span className="font-bold font-mono text-xs text-slate-800 dark:text-slate-200">{g.ticker}</span>
@@ -616,7 +617,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onSelectTicker, ta
 
                 <div className="grid grid-cols-1 gap-2 mt-4">
                   <span className="text-[10px] font-extrabold uppercase tracking-widest text-brand-danger">Losers</span>
-                  {topLosers.slice(0, 3).map((l, idx) => (
+                  {topLosers.slice(0, 3).map((l: any, idx: number) => (
                     <div key={idx} className="flex justify-between items-center p-2 rounded bg-brand-danger/5 border border-brand-danger/10 hover:bg-brand-danger/15 transition-all group">
                       <div onClick={() => onSelectTicker(l.ticker)} className="flex-1 cursor-pointer">
                         <span className="font-bold font-mono text-xs text-slate-800 dark:text-slate-200">{l.ticker}</span>
@@ -639,15 +640,20 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onSelectTicker, ta
 
             {/* Most Active & Trending */}
             <div className="glass-card p-5 rounded-2xl border border-light-border dark:border-dark-border space-y-4">
-              <div className="flex items-center gap-2 border-b border-light-border dark:border-dark-border pb-3">
-                <TrendingUp className="w-4 h-4 text-brand-primary" />
-                <h3 className="text-xs font-black uppercase text-brand-primary tracking-wider">Most Active & Trending Stocks</h3>
+              <div className="flex justify-between items-center border-b border-light-border dark:border-dark-border pb-3">
+                <div className="flex items-center gap-2">
+                  <TrendingUp className="w-4 h-4 text-brand-primary" />
+                  <h3 className="text-xs font-black uppercase text-brand-primary tracking-wider">Most Active & Trending Stocks</h3>
+                </div>
+                {macroData?.movers_source && (
+                  <span className="text-[7.5px] font-mono text-brand-muted">Source: {macroData.movers_source}</span>
+                )}
               </div>
 
               <div className="space-y-3">
                 <div className="grid grid-cols-1 gap-2">
                   <span className="text-[10px] font-extrabold uppercase tracking-widest text-brand-muted">Volume Leaders</span>
-                  {mostActive.slice(0, 2).map((ma, idx) => (
+                  {mostActive.slice(0, 2).map((ma: any, idx: number) => (
                     <div key={idx} className="flex justify-between items-center p-2.5 rounded bg-black/5 dark:bg-white/5 border border-light-border dark:border-dark-border">
                       <div>
                         <span onClick={() => onSelectTicker(ma.ticker)} className="font-bold font-mono text-xs cursor-pointer hover:underline text-slate-800 dark:text-slate-200">{ma.ticker}</span>
@@ -663,7 +669,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onSelectTicker, ta
 
                 <div className="grid grid-cols-1 gap-2 mt-4">
                   <span className="text-[10px] font-extrabold uppercase tracking-widest text-brand-muted">Trending Catalysts</span>
-                  {trendingStocks.slice(0, 2).map((t, idx) => (
+                  {trendingStocks.slice(0, 2).map((t: any, idx: number) => (
                     <div key={idx} className="flex justify-between items-center p-2.5 rounded bg-black/5 dark:bg-white/5 border border-light-border dark:border-dark-border">
                       <div>
                         <span onClick={() => onSelectTicker(t.ticker)} className="font-bold font-mono text-xs cursor-pointer hover:underline text-slate-800 dark:text-slate-200">{t.ticker}</span>
@@ -686,12 +692,17 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onSelectTicker, ta
             
             {/* Sector Heatmap */}
             <div className="md:col-span-2 glass-card p-5 rounded-2xl border border-light-border dark:border-dark-border space-y-4">
-              <div className="flex items-center gap-2 border-b border-light-border dark:border-dark-border pb-3">
-                <Percent className="w-4 h-4 text-brand-primary" />
-                <h3 className="text-xs font-black uppercase text-brand-primary tracking-wider">Sector Rotation Performance</h3>
+              <div className="flex justify-between items-center border-b border-light-border dark:border-dark-border pb-3">
+                <div className="flex items-center gap-2">
+                  <Percent className="w-4 h-4 text-brand-primary" />
+                  <h3 className="text-xs font-black uppercase text-brand-primary tracking-wider">Sector Rotation Performance</h3>
+                </div>
+                {macroData?.movers_source && (
+                  <span className="text-[7.5px] font-mono text-brand-muted">Source: {macroData.movers_source}</span>
+                )}
               </div>
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                {sectorHeatmap.map((s, idx) => {
+                {sectorHeatmap.map((s: any, idx: number) => {
                   const isUp = s.change.startsWith("+");
                   return (
                     <div key={idx} className={`p-3 rounded-xl border flex flex-col justify-between text-center ${

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { TrendingUp, Camera, Compass, RefreshCw, BarChart2, Activity } from "lucide-react";
+import { formatPrice } from "../utils/currency";
 
 interface TechnicalAnalystViewProps {
   ticker: string;
@@ -15,6 +16,12 @@ export const TechnicalAnalystView: React.FC<TechnicalAnalystViewProps> = ({ tick
   const [scanFile, setScanFile] = useState<File | null>(null);
   const [scanResults, setScanResults] = useState<any>(null);
   const [scanLoading, setScanLoading] = useState(false);
+
+  const sourceCurrency = (ticker.toUpperCase().endsWith(".NS") || ticker.toUpperCase().endsWith(".BO")) ? "INR" : "USD";
+  const displayVal = (val: number | undefined | null) => {
+    if (val === undefined || val === null) return "N/A";
+    return formatPrice(val, sourceCurrency, targetCurrency, true);
+  };
 
   const fetchTechnicalAnalysis = async () => {
     setLoading(true);
@@ -118,14 +125,14 @@ export const TechnicalAnalystView: React.FC<TechnicalAnalystViewProps> = ({ tick
 
                   {/* Support/Resistance dashed lines */}
                   <line x1="50" y1="180" x2="550" y2="180" stroke="#ef4444" strokeWidth="1.2" strokeDasharray="5" />
-                  <text x="55" y="175" fill="#ef4444" fontSize="8" fontWeight="bold">Support: ${analysis.support_levels[0]}</text>
+                  <text x="55" y="175" fill="#ef4444" fontSize="8" fontWeight="bold">Support: {displayVal(analysis.support_levels[0])}</text>
                   
                   <line x1="50" y1="80" x2="550" y2="80" stroke="#10b981" strokeWidth="1.2" strokeDasharray="5" />
-                  <text x="55" y="75" fill="#10b981" fontSize="8" fontWeight="bold">Resistance: ${analysis.resistance_levels[0]}</text>
+                  <text x="55" y="75" fill="#10b981" fontSize="8" fontWeight="bold">Resistance: {displayVal(analysis.resistance_levels[0])}</text>
 
                   {/* Invalidation trigger */}
                   <line x1="50" y1="210" x2="550" y2="210" stroke="#a855f7" strokeWidth="1" strokeDasharray="3" />
-                  <text x="450" y="222" fill="#a855f7" fontSize="7" fontWeight="bold">Invalidation trigger: ${analysis.invalidation_levels[0]}</text>
+                  <text x="450" y="222" fill="#a855f7" fontSize="7" fontWeight="bold">Invalidation trigger: {displayVal(analysis.invalidation_levels[0])}</text>
 
                   {/* Dynamic Trendline */}
                   <line x1="100" y1="200" x2="500" y2="100" stroke="#0062ff" strokeWidth="2" opacity="0.5" />
@@ -188,15 +195,15 @@ export const TechnicalAnalystView: React.FC<TechnicalAnalystViewProps> = ({ tick
                 </div>
                 <div className="flex justify-between items-center p-2 bg-black/5 dark:bg-white/5 rounded border border-light-border dark:border-dark-border">
                   <span className="font-semibold">Average True Range (ATR)</span>
-                  <span className="font-mono font-bold">${analysis.indicators?.atr_14}</span>
+                  <span className="font-mono font-bold">{displayVal(analysis.indicators?.atr_14)}</span>
                 </div>
                 <div className="flex justify-between items-center p-2 bg-black/5 dark:bg-white/5 rounded border border-light-border dark:border-dark-border">
                   <span className="font-semibold">EMA 20 / SMA 50</span>
-                  <span className="font-mono font-bold text-brand-secondary">${analysis.indicators?.ema_20} / ${analysis.indicators?.sma_50}</span>
+                  <span className="font-mono font-bold text-brand-secondary">{displayVal(analysis.indicators?.ema_20)} / {displayVal(analysis.indicators?.sma_50)}</span>
                 </div>
                 <div className="flex justify-between items-center p-2 bg-black/5 dark:bg-white/5 rounded border border-light-border dark:border-dark-border">
                   <span className="font-semibold">VWAP Value</span>
-                  <span className="font-mono font-bold">${analysis.indicators?.vwap}</span>
+                  <span className="font-mono font-bold">{displayVal(analysis.indicators?.vwap)}</span>
                 </div>
               </div>
             </div>
@@ -224,7 +231,7 @@ export const TechnicalAnalystView: React.FC<TechnicalAnalystViewProps> = ({ tick
                   {analysis.neutral_scenario}
                 </div>
                 <div className="text-[10px] font-mono text-brand-muted border-t border-light-border dark:border-dark-border pt-2 flex justify-between">
-                  <span>Confirmation Trigger: ${analysis.confirmation_levels[0]}</span>
+                  <span>Confirmation Trigger: {displayVal(analysis.confirmation_levels[0])}</span>
                   <span>Probability: {analysis.probability_estimates}</span>
                 </div>
               </div>
@@ -276,6 +283,14 @@ export const TechnicalAnalystView: React.FC<TechnicalAnalystViewProps> = ({ tick
               ) : null}
             </div>
           </div>
+          {/* Dynamic Data Source attribution badge */}
+          {analysis?.data_source && (
+            <div className="p-2 rounded-lg bg-slate-50 dark:bg-slate-900 border border-light-border dark:border-dark-border text-[9px] font-mono text-brand-muted text-center flex items-center justify-center gap-1.5 shrink-0 mt-4">
+              <span className="inline-block w-1.5 h-1.5 rounded-full bg-brand-secondary animate-pulse" />
+              <span>Source: <strong>{analysis.data_source}</strong></span>
+              {analysis.last_updated && <span>· Updated: <strong>{analysis.last_updated}</strong></span>}
+            </div>
+          )}
         </>
       ) : null}
     </div>

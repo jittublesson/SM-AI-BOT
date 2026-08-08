@@ -82,6 +82,17 @@ TICKER_NAMES = {
     "TATACONSUM.NS": "Tata Consumer Products",
     "BAJAJ-AUTO.NS": "Bajaj Auto",
     "UPL.NS": "UPL Ltd.",
+TICKER_SECTORS = {
+    "RELIANCE.NS": "Energy", "TCS.NS": "IT", "HDFCBANK.NS": "Banks", "BHARTIARTL.NS": "Telecom", "ICICIBANK.NS": "Banks",
+    "INFY.NS": "IT", "HINDUNILVR.NS": "Staples", "ITC.NS": "Staples", "SBIN.NS": "Banks", "KOTAKBANK.NS": "Banks",
+    "LT.NS": "Infra", "AXISBANK.NS": "Banks", "BAJFINANCE.NS": "Financials", "ASIANPAINT.NS": "Consumer", "MARUTI.NS": "Auto",
+    "HCLTECH.NS": "IT", "ULTRACEMCO.NS": "Materials", "TITAN.NS": "Consumer", "SUNPHARMA.NS": "Pharma", "WIPRO.NS": "IT",
+    "NESTLEIND.NS": "Staples", "ADANIPORTS.NS": "Infra", "NTPC.NS": "Energy", "TECHM.NS": "IT", "POWERGRID.NS": "Energy",
+    "ONGC.NS": "Energy", "M&M.NS": "Auto", "COALINDIA.NS": "Energy", "BPCL.NS": "Energy", "DIVISLAB.NS": "Pharma",
+    "BAJAJFINSV.NS": "Financials", "GRASIM.NS": "Materials", "CIPLA.NS": "Pharma", "DRREDDY.NS": "Pharma", "HINDALCO.NS": "Metals",
+    "JSWSTEEL.NS": "Metals", "TATASTEEL.NS": "Metals", "TATAMOTORS.NS": "Auto", "SHREECEM.NS": "Materials", "BRITANNIA.NS": "Staples",
+    "APOLLOHOSP.NS": "Pharma", "EICHERMOT.NS": "Auto", "INDUSINDBK.NS": "Banks", "SBILIFE.NS": "Financials", "HDFCLIFE.NS": "Financials",
+    "PIDILITIND.NS": "Consumer", "HEROMOTOCO.NS": "Auto", "TATACONSUM.NS": "Staples", "BAJAJ-AUTO.NS": "Auto", "UPL.NS": "Materials"
 }
 
 
@@ -110,13 +121,16 @@ class MacroService:
             prev_close = float(hist["Close"].iloc[-2]) if len(hist) >= 2 else price
             change_pct = ((price - prev_close) / prev_close) * 100 if prev_close else 0.0
 
+            as_of_label = hist.index[-1].strftime("%a, %b %d") if not hist.empty else None
             res = {
                 "price": f"{price:,.2f}" if price > 100 else f"{price:.4f}" if price < 1 else f"{price:.2f}",
                 "change": f"{'+' if change_pct >= 0 else ''}{change_pct:.2f}%",
+                "as_of": as_of_label,
                 "data_available": True,
             }
             set_cached(cache_key, res)
             return res
+
 
         except Exception as e:
             print(f"[MacroService] Index fetch failed for {ticker}: {e}")
@@ -130,7 +144,8 @@ class MacroService:
     @staticmethod
     def get_nifty50_movers() -> Dict[str, Any]:
         """
-        Fetch live top gainers and losers from the Nifty 50 basket.
+        Fetch live top gainers, losers, volume leaders, trending stocks, and sector changes
+        from the Nifty 50 basket.
         Uses yfinance batch download. Cached 5 minutes.
         """
         cache_key = "nifty50_movers"
@@ -143,11 +158,12 @@ class MacroService:
             data = yf.download(tickers_str, period="2d", progress=False, auto_adjust=True, threads=True)
 
             if data.empty:
-                return {"gainers": [], "losers": [], "data_available": False, "source": "Yahoo Finance"}
+                return {"gainers": [], "losers": [], "most_active": [], "trending": [], "sector_heatmap": [], "data_available": False, "source": "Yahoo Finance"}
 
             close = data["Close"] if "Close" in data else data.get("close", pd.DataFrame())
+            volume_df = data["Volume"] if "Volume" in data else data.get("volume", pd.DataFrame())
             if close.empty:
-                return {"gainers": [], "losers": [], "data_available": False, "source": "Yahoo Finance"}
+                return {"gainers": [], "losers": [], "most_active": [], "trending": [], "sector_heatmap": [], "data_available": False, "source": "Yahoo Finance"}
 
             changes = []
             for ticker in NIFTY50_BASKET:
@@ -163,33 +179,96 @@ class MacroService:
                     if prev_price <= 0:
                         continue
                     pct = ((today_price - prev_price) / prev_price) * 100
+
+                    vol = 0
+                    if not volume_df.empty and col in volume_df.columns:
+                        v_series = volume_df[col].dropna()
+                        if not v_series.empty:
+                            vol = int(v_series.iloc[-1])
+
+                    vol_fmt = f"{vol / 1e6:.1f}M" if vol >= 1e6 else f"{vol / 1e3:.0f}K" if vol >= 1e3 else str(vol)
+
                     changes.append({
                         "ticker": ticker,
                         "name": TICKER_NAMES.get(ticker, ticker.replace(".NS", "")),
                         "price": round(today_price, 2),
+                        "priceVal": round(today_price, 2),
                         "change": f"{'+' if pct >= 0 else ''}{pct:.2f}%",
                         "change_pct": round(pct, 2),
+                        "volume": vol,
+                        "volume_fmt": vol_fmt,
+                        "currency": "INR",
+                        "sector": TICKER_SECTORS.get(ticker, "Equity")
                     })
                 except Exception:
                     continue
 
             if not changes:
-                return {"gainers": [], "losers": [], "data_available": False, "source": "Yahoo Finance"}
+                return {"gainers": [], "losers": [], "most_active": [], "trending": [], "sector_heatmap": [], "data_available": False, "source": "Yahoo Finance"}
 
+            # Gainers & Losers
             changes.sort(key=lambda x: x["change_pct"])
             gainers = list(reversed(changes[-5:]))
             losers = changes[:5]
 
+            # Most Active (Volume Leaders)
+            changes_by_volume = sorted([c for c in changes if c["volume"] > 0], key=lambda x: x["volume"], reverse=True)
+            most_active = []
+            for item in changes_by_volume[:5]:
+                most_active.append({
+                    "ticker": item["ticker"],
+                    "name": item["name"],
+                    "priceVal": item["priceVal"],
+                    "currency": "INR",
+                    "volume": f"{item['volume_fmt']} shares",
+                    "change": item["change"]
+                })
+
+            # Trending (largest absolute moves)
+            changes_by_abs = sorted(changes, key=lambda x: abs(x["change_pct"]), reverse=True)
+            trending = []
+            for item in changes_by_abs[:5]:
+                trending.append({
+                    "ticker": item["ticker"],
+                    "name": item["name"],
+                    "priceVal": item["priceVal"],
+                    "currency": "INR",
+                    "volume": f"High Vol ({item['volume_fmt']})",
+                    "change": item["change"]
+                })
+
+            # Sector Heatmap / Rotation
+            sector_changes = {}
+            for item in changes:
+                sec = item["sector"]
+                if sec:
+                    if sec not in sector_changes:
+                        sector_changes[sec] = []
+                    sector_changes[sec].append(item["change_pct"])
+
+            sector_heatmap = []
+            for sec, pcts in sector_changes.items():
+                avg_pct = sum(pcts) / len(pcts) if pcts else 0.0
+                signal = "Strong Acc" if avg_pct > 1.5 else "Steady Acc" if avg_pct > 0.5 else "Reduce" if avg_pct < -1.0 else "Neutral"
+                sector_heatmap.append({
+                    "name": sec,
+                    "change": f"{'+' if avg_pct >= 0 else ''}{avg_pct:.2f}%",
+                    "trend": "up" if avg_pct >= 0 else "down",
+                    "signal": signal
+                })
+
             result = {
                 "gainers": gainers,
                 "losers": losers,
+                "most_active": most_active,
+                "trending": trending,
+                "sector_heatmap": sector_heatmap,
                 "data_available": True,
                 "source": "Yahoo Finance (Nifty 50 Basket)",
                 "last_updated": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
             }
             set_cached(cache_key, result)
             return result
-
         except Exception as e:
             print(f"[MacroService] Nifty movers batch fetch failed: {e}")
             return {"gainers": [], "losers": [], "data_available": False, "source": "Yahoo Finance"}
@@ -205,7 +284,7 @@ class MacroService:
         nifty     = MacroService.get_index_price("^NSEI")
         sensex    = MacroService.get_index_price("^BSESN")
         bank_nifty = MacroService.get_index_price("^NSEBANK")
-        india_vix = MacroService.get_index_price("INDIAVIX.NS")
+        india_vix = MacroService.get_index_price("^INDIAVIX")
 
         # --- Commodities & Forex (live from Yahoo Finance) ---
         gold    = MacroService.get_index_price("GC=F")
@@ -269,21 +348,21 @@ class MacroService:
 
         # Global Markets assembly
         global_markets = [
-            {"name": "S&P 500",    "price": sp500["price"],    "change": sp500["change"],    "data_available": sp500.get("data_available", False)},
-            {"name": "Nasdaq",     "price": nasdaq["price"],   "change": nasdaq["change"],   "data_available": nasdaq.get("data_available", False)},
-            {"name": "Dow Jones",  "price": dow["price"],      "change": dow["change"],      "data_available": dow.get("data_available", False)},
-            {"name": "Nikkei 225", "price": nikkei["price"],   "change": nikkei["change"],   "data_available": nikkei.get("data_available", False)},
-            {"name": "Hang Seng",  "price": hang_seng["price"],"change": hang_seng["change"],"data_available": hang_seng.get("data_available", False)},
-            {"name": "DAX",        "price": dax["price"],      "change": dax["change"],      "data_available": dax.get("data_available", False)},
-            {"name": "FTSE 100",   "price": ftse["price"],     "change": ftse["change"],     "data_available": ftse.get("data_available", False)},
-            {"name": "USD / INR",  "price": usdinr["price"],   "change": usdinr["change"],   "data_available": usdinr.get("data_available", False)},
+            {"name": "S&P 500",    "price": sp500["price"],    "change": sp500["change"],    "as_of": sp500.get("as_of"),    "data_available": sp500.get("data_available", False)},
+            {"name": "Nasdaq",     "price": nasdaq["price"],   "change": nasdaq["change"],   "as_of": nasdaq.get("as_of"),   "data_available": nasdaq.get("data_available", False)},
+            {"name": "Dow Jones",  "price": dow["price"],      "change": dow["change"],      "as_of": dow.get("as_of"),      "data_available": dow.get("data_available", False)},
+            {"name": "Nikkei 225", "price": nikkei["price"],   "change": nikkei["change"],   "as_of": nikkei.get("as_of"),   "data_available": nikkei.get("data_available", False)},
+            {"name": "Hang Seng",  "price": hang_seng["price"],"change": hang_seng["change"],"as_of": hang_seng.get("as_of"),"data_available": hang_seng.get("data_available", False)},
+            {"name": "DAX",        "price": dax["price"],      "change": dax["change"],      "as_of": dax.get("as_of"),      "data_available": dax.get("data_available", False)},
+            {"name": "FTSE 100",   "price": ftse["price"],     "change": ftse["change"],     "as_of": ftse.get("as_of"),     "data_available": ftse.get("data_available", False)},
+            {"name": "USD / INR",  "price": usdinr["price"],   "change": usdinr["change"],   "as_of": usdinr.get("as_of"),   "data_available": usdinr.get("data_available", False)},
         ]
 
         indian_indices = [
-            {"name": "Nifty 50",    "price": nifty["price"],      "change": nifty["change"],      "data_available": nifty.get("data_available", False)},
-            {"name": "Sensex",      "price": sensex["price"],     "change": sensex["change"],     "data_available": sensex.get("data_available", False)},
-            {"name": "Bank Nifty",  "price": bank_nifty["price"], "change": bank_nifty["change"], "data_available": bank_nifty.get("data_available", False)},
-            {"name": "India VIX",   "price": india_vix["price"],  "change": india_vix["change"],  "data_available": india_vix.get("data_available", False)},
+            {"name": "Nifty 50",    "price": nifty["price"],      "change": nifty["change"],      "as_of": nifty.get("as_of"),      "data_available": nifty.get("data_available", False)},
+            {"name": "Sensex",      "price": sensex["price"],     "change": sensex["change"],     "as_of": sensex.get("as_of"),     "data_available": sensex.get("data_available", False)},
+            {"name": "Bank Nifty",  "price": bank_nifty["price"], "change": bank_nifty["change"], "as_of": bank_nifty.get("as_of"), "data_available": bank_nifty.get("data_available", False)},
+            {"name": "India VIX",   "price": india_vix["price"],  "change": india_vix["change"],  "as_of": india_vix.get("as_of"),  "data_available": india_vix.get("data_available", False)},
         ]
 
         commodities = [
@@ -334,9 +413,12 @@ class MacroService:
             "indian_indices": indian_indices,
             "commodities": commodities,
             "fixed_income": fixed_income,
-            # Gainers/losers from live Nifty 50 batch fetch
+            # Gainers/losers/active/trending from live Nifty 50 batch fetch
             "top_gainers": movers.get("gainers", []),
             "top_losers":  movers.get("losers", []),
+            "most_active": movers.get("most_active", []),
+            "trending":    movers.get("trending", []),
+            "sector_heatmap": movers.get("sector_heatmap", []),
             "movers_data_available": movers.get("data_available", False),
             "movers_source": movers.get("source", "Yahoo Finance"),
             "movers_last_updated": movers.get("last_updated", "N/A"),
@@ -346,3 +428,4 @@ class MacroService:
             "data_source": "Yahoo Finance (live) + RBI/MOSPI/SEBI official publications",
             "last_updated": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
         }
+

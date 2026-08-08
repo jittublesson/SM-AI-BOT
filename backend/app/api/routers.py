@@ -136,8 +136,8 @@ def analyze_technical(ticker: str):
         "trend": "Bullish Momentum" if last_price > prices[0] else "Consolidation / Sideways",
         "support_levels": support_levels,
         "resistance_levels": resistance_levels,
-        "demand_zones": [f"Price range between ${support_levels[1]} and ${support_levels[0]}"],
-        "supply_zones": [f"Price range between ${resistance_levels[0]} and ${resistance_levels[1]}"],
+        "demand_zones": [f"Price range between {support_levels[1]} and {support_levels[0]}"],
+        "supply_zones": [f"Price range between {resistance_levels[0]} and {resistance_levels[1]}"],
         "patterns_detected": patterns,
         "indicators": indicators,
         "bull_scenario": "Breakout above immediate resistance targets next structural high.",
@@ -146,8 +146,11 @@ def analyze_technical(ticker: str):
         "confirmation_levels": [resistance_levels[0]],
         "invalidation_levels": [support_levels[0]],
         "risk_factors": ["High beta adjustments in tech indices", "Impending earnings announcements volatility"],
-        "probability_estimates": "Bullish: 60% | Bearish: 25% | Neutral: 15%"
+        "probability_estimates": "Bullish: 60% | Bearish: 25% | Neutral: 15%",
+        "data_source": "Yahoo Finance (Historical Prices)",
+        "last_updated": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     }
+
 
 
 # --- 6. Trading Strategy Builder Routers ---

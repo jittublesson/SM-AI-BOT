@@ -142,6 +142,9 @@ class TechnicalResponse(BaseModel):
     invalidation_levels: List[float]
     risk_factors: List[str]
     probability_estimates: str
+    data_source: Optional[str] = "Yahoo Finance (Historical Prices)"
+    last_updated: Optional[str] = None
+
 
 # Trading Strategy schemas
 class BacktestRequest(BaseModel):
