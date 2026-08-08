@@ -25,55 +25,87 @@ def set_cached(key: str, val: Any):
     _CACHE[key] = (val, time.time())
 
 CACHE_TTL_PRICE = 120        # 2 minutes for live prices
-CACHE_TTL_FINANCIALS = 43200 # 12 hours for heavy financial statements
+CACHE_TTL_FINANCIALS = 86400 # 24 hours for heavy financial statements (1 day)
 CACHE_TTL_SEARCH = 300       # 5 minutes for autocomplete search results
 
 class YFinanceService:
     @staticmethod
-    def search_companies(query: str) -> List[Dict[str, Any]]:
-        """
-        Fuzzy autocomplete search query against Yahoo Finance search API.
-        Enables instant resolution of any NSE/BSE or global listing.
-        """
-        query_clean = query.strip()
-        if not query_clean:
-            return []
-            
-        cache_key = f"search_{query_clean.lower()}"
-        cached = get_cached(cache_key, CACHE_TTL_SEARCH)
-        if cached is not None:
+    def get_live_price(ticker: str) -> Dict[str, Any]:
+        ticker_upper = ticker.upper().strip()
+        cache_key = f"price_{ticker_upper}"
+        
+        # Check cache (120s TTL)
+        cached = get_cached(cache_key, CACHE_TTL_PRICE)
+        if cached:
             return cached
             
         try:
-            encoded = urllib.parse.quote(query_clean)
-            url = f"https://query2.finance.yahoo.com/v1/finance/search?q={encoded}"
+            yt = yf.Ticker(ticker_upper)
+            fast = yt.fast_info
             
+            price = fast.last_price
+            prev_close = fast.previous_close
+            
+            if price is None or prev_close is None:
+                # Try to get from info as fallback
+                info = yt.info
+                price = info.get("currentPrice", info.get("previousClose", 0.0))
+                prev_close = info.get("previousClose", price)
+                volume = info.get("volume", 0)
+                currency = info.get("currency", "INR")
+            else:
+                volume = fast.last_volume
+                currency = fast.currency
+                
+            change = 0.0
+            if prev_close and prev_close > 0:
+                change = round(((price - prev_close) / prev_close) * 100.0, 2)
+                
+            res = {
+                "price": round(price, 2) if price else 0.0,
+                "change": change,
+                "volume": volume,
+                "currency": currency,
+                "as_of": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            }
+            
+            set_cached(cache_key, res)
+            return res
+        except Exception as e:
+            print(f"[YFinanceService] Error fetching live price for {ticker_upper}: {e}")
+            return {"error_state": True, "price": 0.0, "change": 0.0, "volume": 0, "currency": "INR"}
+
+    @staticmethod
+    def search_companies(query: str) -> List[Dict[str, Any]]:
+        """
+        Fuzzy autocomplete search query against Yahoo Finance search API.
+        """
+        ticker_clean = query.upper().strip()
+        cache_key = f"search_{ticker_clean}"
+        cached = get_cached(cache_key, CACHE_TTL_SEARCH)
+        if cached:
+            return cached
+            
+        try:
+            # Query Yahoo Search endpoint
+            url = f"https://query2.finance.yahoo.com/v1/finance/search?q={urllib.parse.quote(query)}"
             req = urllib.request.Request(
-                url,
+                url, 
                 headers={'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'}
             )
-            
-            with urllib.request.urlopen(req, timeout=5) as response:
-                data = json.loads(response.read().decode('utf-8'))
-                quotes = data.get("quotes", [])
-                
+            with urllib.request.urlopen(req) as response:
+                res_data = json.loads(response.read().decode())
+                quotes = res_data.get("quotes", [])
                 results = []
                 for q in quotes:
-                    symbol = q.get("symbol")
-                    if not symbol:
-                        continue
-                    
-                    q_type = q.get("quoteType", "EQUITY")
-                    exchange = q.get("exchange", "Exchange")
-                    
-                    results.append({
-                        "ticker": symbol,
-                        "name": q.get("longname", q.get("shortname", symbol)),
-                        "sector": q.get("sector", "Various"),
-                        "industry": q.get("industry", "Various"),
-                        "exchange": "NSE" if exchange == "NSI" else "BSE" if exchange == "BSE" else exchange,
-                        "type": q_type
-                    })
+                    if q.get("quoteType") in ["EQUITY", "ETF"]:
+                        results.append({
+                            "ticker": q.get("symbol"),
+                            "name": q.get("shortname") or q.get("longname") or q.get("symbol"),
+                            "exchange": q.get("exchange"),
+                            "sector": q.get("sector", "Diversified"),
+                            "industry": q.get("industry", "Other")
+                        })
                 
                 set_cached(cache_key, results)
                 return results
@@ -94,15 +126,17 @@ class YFinanceService:
         cached_profile = get_cached(cache_key, CACHE_TTL_FINANCIALS)
         
         if cached_profile:
-            price_key = f"price_{ticker_upper}"
-            fresh_price = get_cached(price_key, CACHE_TTL_PRICE)
-            if fresh_price:
+            # Get fresh price separately
+            fresh_price = YFinanceService.get_live_price(ticker_upper)
+            if not fresh_price.get("error_state"):
                 import copy
                 profile_copy = copy.deepcopy(cached_profile)
                 profile_copy["info"]["price"] = fresh_price.get("price", profile_copy["info"]["price"])
                 profile_copy["info"]["intraday_change"] = fresh_price.get("change", profile_copy["info"]["intraday_change"])
                 profile_copy["metadata"]["last_updated"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
                 return profile_copy
+            else:
+                return cached_profile
         
         try:
             yt = yf.Ticker(ticker_upper)
@@ -177,7 +211,8 @@ class YFinanceService:
                 dii = round((dii / total_sum) * 100.0, 2)
                 retail = 0.0
                 
-            validate_shareholding_data(ticker_upper, promoter, fii, dii, retail)
+            if not validate_shareholding_data(ticker_upper, promoter, fii, dii, retail):
+                raise ValueError(f"Shareholding percentages for '{ticker_upper}' failed validation.")
             
             stock_profile["promoter_holding"] = promoter
             stock_profile["fii_holding"] = fii
@@ -219,6 +254,36 @@ class YFinanceService:
             bal_sheet = yt.balance_sheet
             cashflow_stmt = yt.cashflow
             
+            # Determine basis dynamically
+            basis = "Consolidated"
+            if income_stmt is not None and not income_stmt.empty:
+                # If we find minority interest or noncontrolling interest with non-zero values, it is consolidated
+                for idx in ["Minority Interests", "Net Income Including Noncontrolling Interests"]:
+                    if idx in income_stmt.index:
+                        vals = income_stmt.loc[idx]
+                        if isinstance(vals, pd.Series):
+                            vals = vals.values
+                        else:
+                            vals = [vals]
+                        if any(float(v) != 0.0 for v in vals if not pd.isna(v)):
+                            basis = "Consolidated"
+                            break
+            
+            def get_period_label(col_date):
+                try:
+                    dt = pd.to_datetime(col_date)
+                    is_indian = ".NS" in ticker_upper or ".BO" in ticker_upper
+                    if is_indian:
+                        if dt.month == 3:
+                            y = dt.year
+                            return f"FY{y-1}-{str(y)[2:]}"
+                        else:
+                            return f"FY{dt.year}"
+                    else:
+                        return f"FY{dt.year}"
+                except Exception:
+                    return f"FY{pd.to_datetime(col_date).year}"
+
             if income_stmt is not None and not income_stmt.empty:
                 cols = income_stmt.columns
                 for col in cols[:4]: # Grab up to 4 years
@@ -234,7 +299,12 @@ class YFinanceService:
                             return 0.0
                             
                         rev = get_val(income_stmt, "Total Revenue")
-                        net = get_val(income_stmt, "Net Income")
+                        # Prioritize Consolidated Net Income (attributable to group/including noncontrolling interests)
+                        net = (
+                            get_val(income_stmt, "Net Income Including Noncontrolling Interests") or
+                            get_val(income_stmt, "Net Income Continuous Operations") or
+                            get_val(income_stmt, "Net Income")
+                        )
                         ebitda = get_val(income_stmt, "EBITDA") or (get_val(income_stmt, "Operating Income") * 1.15)
                         eps = get_val(income_stmt, "Basic EPS") or (net / 1e6)
                         
@@ -253,6 +323,8 @@ class YFinanceService:
                         
                         financials_history.append({
                             "year": int(year),
+                            "period_label": get_period_label(col),
+                            "basis": basis,
                             "revenue": round(rev / 1e6, 2),
                             "ebitda": round(ebitda / 1e6, 2),
                             "pat": round(net / 1e6, 2),
@@ -314,8 +386,10 @@ class YFinanceService:
                     
             # Run Automated Financial Statement Sanity Validation Checks
             for f in financials_history:
-                validate_financial_growth(ticker_upper, f["year"], "Revenue", f["growth_revenue"])
-                validate_financial_growth(ticker_upper, f["year"], "PAT", f["growth_pat"])
+                if not validate_financial_growth(ticker_upper, f["year"], "Revenue", f["growth_revenue"]):
+                    raise ValueError(f"YoY Revenue growth for '{ticker_upper}' in {f['year']} failed validation (>200%).")
+                if not validate_financial_growth(ticker_upper, f["year"], "PAT", f["growth_pat"]):
+                    raise ValueError(f"YoY PAT growth for '{ticker_upper}' in {f['year']} failed validation (>200%).")
                 validate_debt_equity_ratio(ticker_upper, f["year"], f["total_debt"], f["shareholders_equity"], f["debt_equity"])
                     
             res = {

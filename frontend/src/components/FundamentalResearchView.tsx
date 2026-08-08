@@ -261,63 +261,74 @@ export const FundamentalResearchView: React.FC<FundamentalResearchViewProps> = (
     }
   };
 
-  const renderOverview = () => (
-    <div className="space-y-6">
-      {data?.profile?.info?.etf_details?.is_etf && (
-        <div className="glass-card p-5 rounded-lg border border-brand-primary/20 bg-brand-primary/5 space-y-3">
-          <h3 className="text-xs font-black uppercase text-brand-primary tracking-wider flex items-center gap-1.5">
-            <Sparkles className="w-4 h-4 text-brand-primary animate-pulse" />
-            ETF Research Summary
-          </h3>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-xs font-mono">
-            <div className="p-3 bg-black/5 dark:bg-white/5 rounded-xl">
-              <span className="text-[9px] text-brand-muted uppercase font-sans font-bold">Tracking Error</span>
-              <span className="font-bold text-brand-primary mt-1 block">{data.profile?.info?.etf_details?.tracking_error}%</span>
-            </div>
-            <div className="p-3 bg-black/5 dark:bg-white/5 rounded-xl">
-              <span className="text-[9px] text-brand-muted uppercase font-sans font-bold">Expense Ratio</span>
-              <span className="font-bold text-brand-primary mt-1 block">{data.profile?.info?.etf_details?.expense_ratio}%</span>
-            </div>
-            <div className="p-3 bg-black/5 dark:bg-white/5 rounded-xl">
-              <span className="text-[9px] text-brand-muted uppercase font-sans font-bold">Market Liquidity</span>
-              <span className="font-bold text-brand-secondary mt-1 block">{data.profile?.info?.etf_details?.liquidity}</span>
-            </div>
-            <div className="p-3 bg-black/5 dark:bg-white/5 rounded-xl">
-              <span className="text-[9px] text-brand-muted uppercase font-sans font-bold">Premium / Discount</span>
-              <span className="font-bold text-brand-primary mt-1 block">{data.profile?.info?.etf_details?.premium_discount}</span>
-            </div>
-          </div>
-        </div>
-      )}
+  const renderOverview = () => {
+    const latestFin = data?.profile?.financials?.[0];
+    const latestPeriod = latestFin?.period_label || (latestFin?.year ? `FY${latestFin.year}` : null);
+    const basisLabel = latestFin?.basis || "Consolidated";
+    const periodLabelText = latestPeriod ? `${latestPeriod} (${basisLabel})` : `Latest (${basisLabel})`;
 
-      <div className="glass-card p-6 rounded-lg flex flex-col space-y-4 border border-light-border dark:border-dark-border">
-        <h2 className="text-sm font-bold flex items-center gap-2 border-b border-light-border dark:border-dark-border pb-3">
-          Company Overview & Profile
-        </h2>
-        <p className="text-xs leading-relaxed text-slate-600 dark:text-slate-300">
-          {data?.profile?.info?.description || "No description available."}
-        </p>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 pt-2">
-          <div className="p-3.5 bg-black/5 dark:bg-white/5 rounded-xl border border-light-border dark:border-dark-border">
-            <span className="text-[9px] text-brand-muted uppercase font-mono font-bold block">Market Capitalization</span>
-            <span className="text-xs font-bold text-slate-800 dark:text-slate-100">{formatFinancialValue(data?.profile?.info?.market_cap || 0, sourceCurrency, targetCurrency)}</span>
+    return (
+      <div className="space-y-6">
+        {data?.profile?.info?.etf_details?.is_etf && (
+          <div className="glass-card p-5 rounded-lg border border-brand-primary/20 bg-brand-primary/5 space-y-3">
+            <h3 className="text-xs font-black uppercase text-brand-primary tracking-wider flex items-center gap-1.5">
+              <Sparkles className="w-4 h-4 text-brand-primary animate-pulse" />
+              ETF Research Summary
+            </h3>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-xs font-mono">
+              <div className="p-3 bg-black/5 dark:bg-white/5 rounded-xl">
+                <span className="text-[9px] text-brand-muted uppercase font-sans font-bold">Tracking Error</span>
+                <span className="font-bold text-brand-primary mt-1 block">{data.profile?.info?.etf_details?.tracking_error}%</span>
+              </div>
+              <div className="p-3 bg-black/5 dark:bg-white/5 rounded-xl">
+                <span className="text-[9px] text-brand-muted uppercase font-sans font-bold">Expense Ratio</span>
+                <span className="font-bold text-brand-primary mt-1 block">{data.profile?.info?.etf_details?.expense_ratio}%</span>
+              </div>
+              <div className="p-3 bg-black/5 dark:bg-white/5 rounded-xl">
+                <span className="text-[9px] text-brand-muted uppercase font-sans font-bold">Market Liquidity</span>
+                <span className="font-bold text-brand-secondary mt-1 block">{data.profile?.info?.etf_details?.liquidity}</span>
+              </div>
+              <div className="p-3 bg-black/5 dark:bg-white/5 rounded-xl">
+                <span className="text-[9px] text-brand-muted uppercase font-sans font-bold">Premium / Discount</span>
+                <span className="font-bold text-brand-primary mt-1 block">{data.profile?.info?.etf_details?.premium_discount}</span>
+              </div>
+            </div>
           </div>
-          <div className="p-3.5 bg-black/5 dark:bg-white/5 rounded-xl border border-light-border dark:border-dark-border">
-            <span className="text-[9px] text-brand-muted uppercase font-mono font-bold block">Price Multiples (P/E)</span>
-            <span className="text-xs font-bold text-slate-800 dark:text-slate-100">{data?.profile?.info?.pe || "—"}</span>
-          </div>
-          <div className="p-3.5 bg-black/5 dark:bg-white/5 rounded-xl border border-light-border dark:border-dark-border">
-            <span className="text-[9px] text-brand-muted uppercase font-mono font-bold block">ROE %</span>
-            <span className="text-xs font-bold text-slate-800 dark:text-slate-100">{data?.profile?.info?.roe || "—"}%</span>
-          </div>
-          <div className="p-3.5 bg-black/5 dark:bg-white/5 rounded-xl border border-light-border dark:border-dark-border">
-            <span className="text-[9px] text-brand-muted uppercase font-mono font-bold block">Debt to Equity</span>
-            <span className="text-xs font-bold text-slate-800 dark:text-slate-100">{data?.profile?.info?.debt_equity || "—"}</span>
+        )}
+
+        <div className="glass-card p-6 rounded-lg flex flex-col space-y-4 border border-light-border dark:border-dark-border">
+          <h2 className="text-sm font-bold flex items-center gap-2 border-b border-light-border dark:border-dark-border pb-3">
+            Company Overview & Profile
+          </h2>
+          <p className="text-xs leading-relaxed text-slate-600 dark:text-slate-300">
+            {data?.profile?.info?.description || "No description available."}
+          </p>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 pt-2">
+            <div className="p-3.5 bg-black/5 dark:bg-white/5 rounded-xl border border-light-border dark:border-dark-border">
+              <span className="text-[9px] text-brand-muted uppercase font-mono font-bold block">Market Capitalization</span>
+              <span className="text-xs font-bold text-slate-800 dark:text-slate-100">{formatFinancialValue(data?.profile?.info?.market_cap || 0, sourceCurrency, targetCurrency)}</span>
+              <span className="text-[8px] text-brand-muted block mt-0.5 font-sans font-medium">Live ({basisLabel})</span>
+            </div>
+            <div className="p-3.5 bg-black/5 dark:bg-white/5 rounded-xl border border-light-border dark:border-dark-border">
+              <span className="text-[9px] text-brand-muted uppercase font-mono font-bold block">Price Multiples (P/E)</span>
+              <span className="text-xs font-bold text-slate-800 dark:text-slate-100">{data?.profile?.info?.pe || "—"}</span>
+              <span className="text-[8px] text-brand-muted block mt-0.5 font-sans font-medium">TTM ({basisLabel})</span>
+            </div>
+            <div className="p-3.5 bg-black/5 dark:bg-white/5 rounded-xl border border-light-border dark:border-dark-border">
+              <span className="text-[9px] text-brand-muted uppercase font-mono font-bold block">ROE %</span>
+              <span className="text-xs font-bold text-slate-800 dark:text-slate-100">{data?.profile?.info?.roe || "—"}%</span>
+              <span className="text-[8px] text-brand-muted block mt-0.5 font-sans font-medium">{periodLabelText}</span>
+            </div>
+            <div className="p-3.5 bg-black/5 dark:bg-white/5 rounded-xl border border-light-border dark:border-dark-border">
+              <span className="text-[9px] text-brand-muted uppercase font-mono font-bold block">Debt to Equity</span>
+              <span className="text-xs font-bold text-slate-800 dark:text-slate-100">{data?.profile?.info?.debt_equity || "—"}</span>
+              <span className="text-[8px] text-brand-muted block mt-0.5 font-sans font-medium">{periodLabelText}</span>
+            </div>
           </div>
         </div>
       </div>
-    </div>
-  );
+    );
+  };
 
   const renderCharting = () => (
     <div className="h-[400px] border border-light-border dark:border-dark-border rounded-lg overflow-hidden shrink-0">
@@ -337,7 +348,10 @@ export const FundamentalResearchView: React.FC<FundamentalResearchViewProps> = (
             <tr className="border-b border-light-border dark:border-dark-border text-brand-muted">
               <th className="py-2 pr-4 font-semibold uppercase">Financial Line Item</th>
               {data?.profile?.financials?.map((f: any) => (
-                <th key={f.year} className="py-2 px-4 font-mono font-bold text-right">{f.year}</th>
+                <th key={f.year} className="py-2 px-4 text-right">
+                  <div className="font-mono font-bold block">{f.period_label || `FY${f.year}`}</div>
+                  <div className="text-[8px] text-brand-muted font-normal uppercase font-sans">({f.basis || "Consolidated"})</div>
+                </th>
               ))}
             </tr>
           </thead>
@@ -837,6 +851,11 @@ export const FundamentalResearchView: React.FC<FundamentalResearchViewProps> = (
                     <h2 className="text-sm font-bold flex items-center gap-2 border-b border-light-border dark:border-dark-border pb-3">
                       <TrendingUp className="text-brand-primary w-5 h-5" />
                       Corporate Revenue Flowchart
+                      {data.profile.financials?.[0] && (
+                        <span className="text-[10px] text-brand-muted font-normal font-sans tracking-normal lowercase ml-auto">
+                          ({data.profile.financials[0].period_label || `FY${data.profile.financials[0].year}`} - {data.profile.financials[0].basis || "Consolidated"})
+                        </span>
+                      )}
                     </h2>
                     <div className="w-full overflow-x-auto py-2">
                       <svg className="w-[800px] h-[300px] mx-auto bg-black/5 dark:bg-white/5 border border-light-border dark:border-dark-border rounded-lg" viewBox="0 0 800 300">
