@@ -17,7 +17,8 @@ export const TechnicalAnalystView: React.FC<TechnicalAnalystViewProps> = ({ tick
   const [scanResults, setScanResults] = useState<any>(null);
   const [scanLoading, setScanLoading] = useState(false);
 
-  const sourceCurrency = (ticker.toUpperCase().endsWith(".NS") || ticker.toUpperCase().endsWith(".BO")) ? "INR" : "USD";
+  const tickerUpper = (ticker || "").trim().toUpperCase();
+  const sourceCurrency = (tickerUpper.endsWith(".NS") || tickerUpper.endsWith(".BO") || tickerUpper.includes(".NS") || tickerUpper.includes(".BO")) ? "INR" : "USD";
   const displayVal = (val: number | undefined | null) => {
     if (val === undefined || val === null) return "N/A";
     return formatPrice(val, sourceCurrency, targetCurrency, true);

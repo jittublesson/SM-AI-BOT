@@ -473,15 +473,24 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onSelectTicker, ta
             <Flame className="w-8 h-8 text-brand-warning" />
           </div>
           <div className="mt-4 space-y-2">
-            <div className="flex justify-between text-[10px] font-mono text-brand-muted">
-              <span>Advances: 1,428</span>
-              <span>Declines: 652</span>
-            </div>
-            <div className="h-2 w-full rounded-full bg-light-border dark:bg-dark-border overflow-hidden flex">
-              <div className="h-full bg-brand-secondary" style={{ width: "68%" }}></div>
-              <div className="h-full bg-brand-danger" style={{ width: "32%" }}></div>
-            </div>
-            <span className="text-[9px] text-brand-muted block italic text-center">Nifty 50 advances capturing 68% participant volume.</span>
+            {macroData?.market_breadth?.data_available ? (
+              <>
+                <div className="flex justify-between text-[10px] font-mono text-brand-muted">
+                  <span>Advances: {macroData.market_breadth.advances}</span>
+                  <span>Declines: {macroData.market_breadth.declines}</span>
+                </div>
+                <div className="h-2 w-full rounded-full bg-light-border dark:bg-dark-border overflow-hidden flex">
+                  <div className="h-full bg-brand-secondary" style={{ width: `${(macroData.market_breadth.advances / (macroData.market_breadth.advances + macroData.market_breadth.declines)) * 100}%` }}></div>
+                  <div className="h-full bg-brand-danger" style={{ width: `${(macroData.market_breadth.declines / (macroData.market_breadth.advances + macroData.market_breadth.declines)) * 100}%` }}></div>
+                </div>
+                <span className="text-[9px] text-brand-muted block italic text-center">Nifty 50 advances capturing participant volume.</span>
+              </>
+            ) : (
+              <div className="p-3 bg-black/5 dark:bg-white/5 rounded border border-light-border dark:border-dark-border text-center">
+                <span className="text-[9px] text-brand-muted block font-sans">Advances/Declines Breadth</span>
+                <span className="text-[8px] text-brand-muted block mt-1 font-mono italic">Requires NSE direct connection</span>
+              </div>
+            )}
           </div>
         </div>
 
@@ -726,24 +735,35 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onSelectTicker, ta
                   <Zap className="w-4 h-4 text-brand-warning" />
                   <h3 className="text-xs font-black uppercase text-brand-primary tracking-wider">FII / DII Flows</h3>
                 </div>
-                <div className="space-y-2.5 mt-3 text-xs font-mono">
-                  <div className="flex justify-between items-center bg-black/5 dark:bg-white/5 p-2 rounded">
-                    <span className="text-brand-muted font-sans font-semibold">FII Cash Net</span>
-                    <span className="font-bold text-slate-800 dark:text-slate-200">
-                      {macroData?.fii_dii_flows?.fii_net_today_cr || "+0 Cr"}
-                    </span>
+                {macroData?.fii_dii_flows?.data_available ? (
+                  <>
+                    <div className="space-y-2.5 mt-3 text-xs font-mono">
+                      <div className="flex justify-between items-center bg-black/5 dark:bg-white/5 p-2 rounded">
+                        <span className="text-brand-muted font-sans font-semibold">FII Cash Net</span>
+                        <span className="font-bold text-slate-800 dark:text-slate-200">
+                          {macroData.fii_dii_flows.fii_net_today_cr}
+                        </span>
+                      </div>
+                      <div className="flex justify-between items-center bg-black/5 dark:bg-white/5 p-2 rounded">
+                        <span className="text-brand-muted font-sans font-semibold">DII Cash Net</span>
+                        <span className="font-bold text-brand-secondary">
+                          {macroData.fii_dii_flows.dii_net_today_cr}
+                        </span>
+                      </div>
+                    </div>
+                    {macroData.fii_dii_flows.summary && (
+                      <p className="text-[9px] leading-relaxed text-brand-muted italic mt-3 bg-black/5 dark:bg-white/5 p-2 rounded">
+                        {macroData.fii_dii_flows.summary}
+                      </p>
+                    )}
+                  </>
+                ) : (
+                  <div className="p-4 bg-black/5 dark:bg-white/5 rounded border border-light-border dark:border-dark-border text-center mt-3">
+                    <span className="text-[9px] text-brand-muted block font-sans">FII / DII flows data is currently unavailable</span>
+                    <span className="text-[8px] text-brand-muted block mt-1 font-mono italic">Requires direct NSE direct connection</span>
                   </div>
-                  <div className="flex justify-between items-center bg-black/5 dark:bg-white/5 p-2 rounded">
-                    <span className="text-brand-muted font-sans font-semibold">DII Cash Net</span>
-                    <span className="font-bold text-brand-secondary">
-                      {macroData?.fii_dii_flows?.dii_net_today_cr || "+0 Cr"}
-                    </span>
-                  </div>
-                </div>
+                )}
               </div>
-              <p className="text-[9px] leading-relaxed text-brand-muted italic mt-3 bg-black/5 dark:bg-white/5 p-2 rounded">
-                {macroData?.fii_dii_flows?.summary || "FII net accumulation is balanced by domestic funds support."}
-              </p>
             </div>
 
           </div>

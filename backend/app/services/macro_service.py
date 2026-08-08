@@ -15,6 +15,7 @@ import yfinance as yf
 from datetime import datetime, timedelta
 import pandas as pd
 from app.services.yfinance_service import get_cached, set_cached
+from app.services.provider_layer import get_market_provider
 
 # ---- Nifty 50 constituent tickers (Yahoo Finance format) ----
 NIFTY50_BASKET = [
@@ -113,16 +114,31 @@ class MacroService:
 
         try:
             yt = yf.Ticker(ticker)
-            hist = yt.history(period="2d")
+            hist = None
+            try:
+                hist = yt.history(period="2d")
+            except Exception as hist_err:
+                print(f"[MacroService] history fetch failed for {ticker}: {hist_err}")
 
-            if hist.empty or len(hist) < 1:
-                raise ValueError(f"Empty history for {ticker}")
+            price = None
+            prev_close = None
+            as_of_label = None
 
-            price = float(hist["Close"].iloc[-1])
-            prev_close = float(hist["Close"].iloc[-2]) if len(hist) >= 2 else price
+            if hist is not None and not hist.empty and len(hist) >= 1:
+                price = float(hist["Close"].iloc[-1])
+                prev_close = float(hist["Close"].iloc[-2]) if len(hist) >= 2 else price
+                as_of_label = hist.index[-1].strftime("%a, %b %d")
+            else:
+                fast_info = getattr(yt, "fast_info", None)
+                if fast_info:
+                    price = fast_info.get("last_price") or fast_info.get("previous_close")
+                    prev_close = fast_info.get("previous_close") or price
+                    as_of_label = datetime.now().strftime("%a, %b %d")
+
+            if price is None:
+                raise ValueError(f"No price resolved for {ticker}")
+
             change_pct = ((price - prev_close) / prev_close) * 100 if prev_close else 0.0
-
-            as_of_label = hist.index[-1].strftime("%a, %b %d") if not hist.empty else None
             res = {
                 "price": f"{price:,.2f}" if price > 100 else f"{price:.4f}" if price < 1 else f"{price:.2f}",
                 "change": f"{'+' if change_pct >= 0 else ''}{change_pct:.2f}%",
@@ -403,13 +419,9 @@ class MacroService:
                 "note": "FII/DII flow data requires NSE India direct API access which is not available on the free tier. Check https://www.nseindia.com for real-time FII/DII data.",
                 "source": "NSE India"
             },
-            "fii_dii_flows": {
-                "data_available": False,
-                "fii_net_today_cr": "N/A",
-                "dii_net_today_cr": "N/A",
-                "combined_flow": "N/A",
-                "note": "Real-time FII/DII data unavailable. See NSE India website.",
-            },
+            # FII/DII & Breadth: centralized consistency via MarketDataProvider
+            "fii_dii_flows": get_market_provider().getFIIDIIFlows(),
+            "market_breadth": get_market_provider().getMarketBreadth(),
             "global_markets": global_markets,
             "indian_indices": indian_indices,
             "commodities": commodities,

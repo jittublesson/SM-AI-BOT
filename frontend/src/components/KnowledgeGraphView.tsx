@@ -51,7 +51,7 @@ export const KnowledgeGraphView: React.FC<KnowledgeGraphViewProps> = ({ ticker, 
         { id: "supp1", label: "Saudi Aramco", type: "supplier", cx: 120, cy: 150, desc: "Feedstock crude oil supplier partner." },
         { id: "supp2", label: "BP Plc", type: "supplier", cx: 220, cy: 230, desc: "Deepwater gas extraction venture partner." },
         { id: "comp1", label: "Bharti Airtel", type: "competitor", cx: 680, cy: 150, desc: "Telecom peer service rival." },
-        { id: "comp2", label: "Tata Trent", type: "competitor", cx: 580, cy: 230, desc: "Retail fashion storefront rival." },
+        { id: "comp2", label: "Adani Enterprises", type: "competitor", cx: 580, cy: 230, desc: "Infrastructure and energy conglomerate competitor." },
         { id: "holder1", label: "Ambani Family", type: "holder", cx: 580, cy: 70, desc: "Promoter shareholding group (50.3%)." },
         { id: "holder2", label: "LIC India", type: "holder", cx: 400, cy: 250, desc: "Domestic institutional anchor (DII)." }
       ],

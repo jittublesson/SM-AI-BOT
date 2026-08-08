@@ -23,6 +23,7 @@ from app.services.chat_service import ChatService
 from app.services.mutual_fund_service import MutualFundService
 from app.services.logger_service import AuditLogger
 from app.services.rag_service import RAGPipeline
+from app.services.provider_layer import get_market_provider
 
 router = APIRouter()
 
@@ -70,7 +71,8 @@ def search_stocks(q: str = Query(..., min_length=1)):
 @router.get("/analyst/profile/{ticker}")
 def get_stock_profile(ticker: str):
     # Returns raw stock data and company health score
-    stock_data = YFinanceService.get_stock_data(ticker)
+    provider = get_market_provider()
+    stock_data = provider.get_stock_data(ticker)
     score_data = ScoreService.evaluate_company_score(ticker)
     coordinated = AgentCoordinator.generate_coordinated_report(ticker, DocumentService.query_filings)
     return {
@@ -109,10 +111,12 @@ def get_portfolio_advice(req: schemas.PortfolioRequest):
 # --- 5. Technical Analyst Routers ---
 @router.get("/technical/analyze", response_model=schemas.TechnicalResponse)
 def analyze_technical(ticker: str):
-    prices = YFinanceService.get_stock_prices_history(ticker)
+    provider = get_market_provider()
+    prices = provider.get_stock_prices_history(ticker)
+    quote = provider.getQuote(ticker)
     
     # Calculate simple indicator support resistance metrics
-    last_price = prices[-1] if prices else 100.0
+    last_price = quote.get("price") or (prices[-1] if prices else 100.0)
     support_levels = [round(last_price * 0.95, 2), round(last_price * 0.90, 2)]
     resistance_levels = [round(last_price * 1.05, 2), round(last_price * 1.10, 2)]
     
@@ -133,22 +137,22 @@ def analyze_technical(ticker: str):
     }
     
     return {
-        "trend": "Bullish Momentum" if last_price > prices[0] else "Consolidation / Sideways",
+        "trend": "Bullish Momentum" if prices and last_price > prices[0] else "Consolidation / Sideways",
         "support_levels": support_levels,
         "resistance_levels": resistance_levels,
         "demand_zones": [f"Price range between {support_levels[1]} and {support_levels[0]}"],
         "supply_zones": [f"Price range between {resistance_levels[0]} and {resistance_levels[1]}"],
         "patterns_detected": patterns,
         "indicators": indicators,
-        "bull_scenario": "Breakout above immediate resistance targets next structural high.",
-        "bear_scenario": "Breakdown below support invalidates current demand consolidation.",
-        "neutral_scenario": "Range-bound trading within support-resistance channel.",
+        "bull_scenario": f"Breakout above immediate resistance at {resistance_levels[0]} target range {resistance_levels[1]}",
+        "bear_scenario": f"Breakdown below support zone {support_levels[0]} targeting {support_levels[1]}",
+        "neutral_scenario": f"Sideways oscillation expected between support {support_levels[0]} and resistance {resistance_levels[0]}",
         "confirmation_levels": [resistance_levels[0]],
         "invalidation_levels": [support_levels[0]],
-        "risk_factors": ["High beta adjustments in tech indices", "Impending earnings announcements volatility"],
         "probability_estimates": "Bullish: 60% | Bearish: 25% | Neutral: 15%",
+        "risk_factors": ["Rate hike cyclicality", "FII outflow spikes"],
         "data_source": "Yahoo Finance (Historical Prices)",
-        "last_updated": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        "last_updated": quote.get("as_of") or datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     }
 
 
@@ -171,7 +175,7 @@ def generate_strategy(req: schemas.BacktestRequest):
 # --- 7. News & Sentiment Routers ---
 @router.get("/news/feed", response_model=schemas.NewsSentimentResponse)
 def get_news_feed(ticker: Optional[str] = None):
-    return NewsService.get_market_sentiment(ticker)
+    return get_market_provider().getNews(ticker)
 
 
 # --- 8. Macro Indicators Routers ---

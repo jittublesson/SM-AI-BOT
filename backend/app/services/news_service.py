@@ -97,7 +97,19 @@ class NewsService:
         target_ticker = ticker.upper().strip() if ticker else None
         cache_key = f"news_sentiment_v2_{target_ticker or 'market'}"
 
-        cached = get_cached(cache_key, 300)  # 5 min TTL
+        # Determine caching TTL based on market hours
+        now = datetime.now()
+        if now.weekday() >= 5:
+            ttl = 43200  # 12 hours on weekends
+        else:
+            # Check if off-hours (between 17:00 and 09:00 local time)
+            hour = now.hour
+            if hour >= 17 or hour < 9:
+                ttl = 14400  # 4 hours during weekday nights
+            else:
+                ttl = 900    # 15 minutes during trading day
+
+        cached = get_cached(cache_key, ttl)
         if cached is not None:
             return cached
 

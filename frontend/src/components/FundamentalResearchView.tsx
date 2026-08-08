@@ -22,6 +22,16 @@ export const FundamentalResearchView: React.FC<FundamentalResearchViewProps> = (
   const [activeExplainMetric, setActiveExplainMetric] = useState<string>("roe");
   const [noteText, setNoteText] = useState("");
   
+  const renderUnavailableSubTab = (title: string, description: string) => (
+    <div className="glass-card p-6 text-center rounded-xl border border-light-border dark:border-dark-border my-4">
+      <AlertTriangle className="w-6 h-6 text-brand-muted mx-auto mb-2" />
+      <h4 className="text-xs font-black text-slate-800 dark:text-white mb-1">{title} Unavailable</h4>
+      <p className="text-[10px] text-brand-muted font-mono max-w-md mx-auto leading-relaxed">
+        {description}
+      </p>
+    </div>
+  );
+  
   const tabsRef = useRef<HTMLDivElement>(null);
 
   const scrollTabs = (direction: "left" | "right") => {
@@ -935,6 +945,14 @@ export const FundamentalResearchView: React.FC<FundamentalResearchViewProps> = (
                 <TradingViewChart ticker={ticker} />
               )}
 
+              {/* TAB: QUARTERLY RESULTS */}
+              {activeSubTab === "quarterly" && (
+                renderUnavailableSubTab(
+                  "Quarterly Financial Results",
+                  "Quarterly earnings reports require integration with a paid data provider or custom NSE/BSE corporate filing scraping. Currently unavailable on the free tier."
+                )
+              )}
+
               {/* TAB: FINANCIAL STATEMENTS */}
               {activeSubTab === "financials" && (
                 <div className="glass-card p-6 rounded-lg flex flex-col space-y-4 border border-light-border dark:border-dark-border">
@@ -1130,34 +1148,41 @@ export const FundamentalResearchView: React.FC<FundamentalResearchViewProps> = (
               )}
 
               {/* TAB: MANAGEMENT */}
-              {activeSubTab === "management" && extData?.management && (
-                <div className="space-y-6">
-                  <div className="glass-card p-6 rounded-lg border border-light-border dark:border-dark-border">
-                    <h2 className="text-sm font-bold flex items-center gap-2 border-b border-light-border dark:border-dark-border pb-3 mb-4">
-                      <UserCheck className="text-brand-primary w-5 h-5" />
-                      Key Management Personnel
-                    </h2>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      {extData.management.map((mgr: any, i: number) => (
-                        <div key={i} className="p-4 rounded-xl bg-black/5 dark:bg-white/5 border border-light-border dark:border-dark-border space-y-2">
-                          <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-2">
-                              <div className="w-9 h-9 rounded-full bg-brand-primary/10 flex items-center justify-center text-brand-primary font-black text-[9px]">
-                                {mgr.role.slice(0, 3)}
+              {activeSubTab === "management" && (
+                extData?.management ? (
+                  <div className="space-y-6">
+                    <div className="glass-card p-6 rounded-lg border border-light-border dark:border-dark-border">
+                      <h2 className="text-sm font-bold flex items-center gap-2 border-b border-light-border dark:border-dark-border pb-3 mb-4">
+                        <UserCheck className="text-brand-primary w-5 h-5" />
+                        Key Management Personnel
+                      </h2>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {extData.management.map((mgr: any, i: number) => (
+                          <div key={i} className="p-4 rounded-xl bg-black/5 dark:bg-white/5 border border-light-border dark:border-dark-border space-y-2">
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-2">
+                                <div className="w-9 h-9 rounded-full bg-brand-primary/10 flex items-center justify-center text-brand-primary font-black text-[9px]">
+                                  {mgr.role.slice(0, 3)}
+                                </div>
+                                <div>
+                                  <p className="text-xs font-bold text-slate-800 dark:text-white">{mgr.name}</p>
+                                  <p className="text-[10px] text-brand-muted">{mgr.role}</p>
+                                </div>
                               </div>
-                              <div>
-                                <p className="text-xs font-bold text-slate-800 dark:text-white">{mgr.name}</p>
-                                <p className="text-[10px] text-brand-muted">{mgr.role}</p>
-                              </div>
+                              <span className="text-[9px] font-mono bg-brand-primary/10 text-brand-primary px-2 py-0.5 rounded">{mgr.tenure}</span>
                             </div>
-                            <span className="text-[9px] font-mono bg-brand-primary/10 text-brand-primary px-2 py-0.5 rounded">{mgr.tenure}</span>
+                            <p className="text-[10px] text-brand-muted leading-relaxed">{mgr.background}</p>
                           </div>
-                          <p className="text-[10px] text-brand-muted leading-relaxed">{mgr.background}</p>
-                        </div>
-                      ))}
+                        ))}
+                      </div>
                     </div>
                   </div>
-                </div>
+                ) : (
+                  renderUnavailableSubTab(
+                    "Key Management Personnel",
+                    "Management profiles and board composition data requires a corporate database subscription or direct corporate filings integration."
+                  )
+                )
               )}
 
               {/* TAB: SHAREHOLDING */}
@@ -1202,63 +1227,77 @@ export const FundamentalResearchView: React.FC<FundamentalResearchViewProps> = (
               )}
 
               {/* TAB: CORPORATE ACTIONS */}
-              {activeSubTab === "corporate_actions" && extData?.corporate_actions && (
-                <div className="space-y-6">
-                  <div className="glass-card p-6 rounded-lg border border-light-border dark:border-dark-border">
-                    <h2 className="text-sm font-bold flex items-center gap-2 border-b border-light-border dark:border-dark-border pb-3 mb-4">
-                      <GitBranch className="text-brand-primary w-5 h-5" />
-                      Corporate Actions Timeline
-                    </h2>
-                    <div className="space-y-3">
-                      {extData.corporate_actions.map((a: any, i: number) => (
-                        <div key={i} className="flex items-center gap-4 p-3.5 rounded-xl bg-black/5 dark:bg-white/5 border border-light-border dark:border-dark-border">
-                          <div className="w-14 text-center shrink-0">
-                            <span className="text-[9px] font-mono text-brand-muted">{a.date}</span>
+              {activeSubTab === "corporate_actions" && (
+                extData?.corporate_actions ? (
+                  <div className="space-y-6">
+                    <div className="glass-card p-6 rounded-lg border border-light-border dark:border-dark-border">
+                      <h2 className="text-sm font-bold flex items-center gap-2 border-b border-light-border dark:border-dark-border pb-3 mb-4">
+                        <GitBranch className="text-brand-primary w-5 h-5" />
+                        Corporate Actions Timeline
+                      </h2>
+                      <div className="space-y-3">
+                        {extData.corporate_actions.map((a: any, i: number) => (
+                          <div key={i} className="flex items-center gap-4 p-3.5 rounded-xl bg-black/5 dark:bg-white/5 border border-light-border dark:border-dark-border">
+                            <div className="w-14 text-center shrink-0">
+                              <span className="text-[9px] font-mono text-brand-muted">{a.date}</span>
+                            </div>
+                            <div className="h-10 w-px bg-brand-primary/20 shrink-0" />
+                            <div className="flex-1 min-w-0">
+                              <span className="text-xs font-bold text-slate-800 dark:text-white block">{a.type}</span>
+                              <p className="text-[10px] text-brand-muted">{a.details}</p>
+                            </div>
                           </div>
-                          <div className="h-10 w-px bg-brand-primary/20 shrink-0" />
-                          <div className="flex-1 min-w-0">
-                            <span className="text-xs font-bold text-slate-800 dark:text-white block">{a.type}</span>
-                            <p className="text-[10px] text-brand-muted">{a.details}</p>
-                          </div>
-                        </div>
-                      ))}
+                        ))}
+                      </div>
                     </div>
                   </div>
-                </div>
+                ) : (
+                  renderUnavailableSubTab(
+                    "Corporate Actions",
+                    "Corporate actions (dividends history, splits, bonuses, buybacks) require direct NSE/BSE filings feed."
+                  )
+                )
               )}
 
               {/* TAB: CREDIT RATINGS */}
-              {activeSubTab === "credit_ratings" && extData?.credit_ratings && (
-                <div className="space-y-6">
-                  <div className="glass-card p-6 rounded-lg border border-light-border dark:border-dark-border">
-                    <h2 className="text-sm font-bold flex items-center gap-2 border-b border-light-border dark:border-dark-border pb-3 mb-4">
-                      <Star className="text-brand-warning w-5 h-5" />
-                      Credit Ratings
-                    </h2>
-                    <div className="overflow-x-auto">
-                      <table className="w-full text-xs">
-                        <thead>
-                          <tr className="border-b border-light-border dark:border-dark-border text-[10px] uppercase tracking-wider text-brand-muted">
-                            <th className="text-left py-2 pr-4 font-bold">Agency</th>
-                            <th className="text-center py-2 px-3 font-bold">Rating</th>
-                            <th className="text-center py-2 px-3 font-bold">Outlook</th>
-                            <th className="text-left py-2 px-3 font-bold">Instrument</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {extData.credit_ratings.map((cr: any, i: number) => (
-                            <tr key={i} className="border-b border-light-border/40 dark:border-dark-border/40 font-mono">
-                              <td className="py-2.5 pr-4 text-slate-800 dark:text-slate-200">{cr.agency}</td>
-                              <td className="text-center py-2.5 px-3 text-brand-secondary font-bold">{cr.rating}</td>
-                              <td className="text-center py-2.5 px-3">{cr.outlook}</td>
-                              <td className="py-2.5 px-3 text-brand-muted">{cr.instrument}</td>
+              {activeSubTab === "credit_ratings" && (
+                extData?.credit_ratings ? (
+                  <div className="space-y-6">
+                    <div className="glass-card p-6 rounded-lg border border-light-border dark:border-dark-border">
+                      <h2 className="text-sm font-bold flex items-center gap-2 border-b border-light-border dark:border-dark-border pb-3 mb-4">
+                        <Star className="text-brand-warning w-5 h-5" />
+                        Credit Ratings
+                      </h2>
+                      <div className="overflow-x-auto">
+                        <table className="w-full text-xs">
+                          <thead>
+                            <tr className="border-b border-light-border dark:border-dark-border text-[10px] uppercase tracking-wider text-brand-muted">
+                              <th className="text-left py-2 pr-4 font-bold">Agency</th>
+                              <th className="text-center py-2 px-3 font-bold">Rating</th>
+                              <th className="text-center py-2 px-3 font-bold">Outlook</th>
+                              <th className="text-left py-2 px-3 font-bold">Instrument</th>
                             </tr>
-                          ))}
-                        </tbody>
-                      </table>
+                          </thead>
+                          <tbody>
+                            {extData.credit_ratings.map((cr: any, i: number) => (
+                              <tr key={i} className="border-b border-light-border/40 dark:border-dark-border/40 font-mono">
+                                <td className="py-2.5 pr-4 text-slate-800 dark:text-slate-200">{cr.agency}</td>
+                                <td className="text-center py-2.5 px-3 text-brand-secondary font-bold">{cr.rating}</td>
+                                <td className="text-center py-2.5 px-3">{cr.outlook}</td>
+                                <td className="py-2.5 px-3 text-brand-muted">{cr.instrument}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
                     </div>
                   </div>
-                </div>
+                ) : (
+                  renderUnavailableSubTab(
+                    "Credit Ratings",
+                    "Company debt credit ratings from rating agencies (CRISIL, ICRA, CARE, Moody's, S&P) are currently unavailable."
+                  )
+                )
               )}
 
               {/* TAB: GOVERNANCE */}

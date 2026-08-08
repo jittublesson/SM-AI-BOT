@@ -228,12 +228,6 @@ export const MarketIntelView: React.FC<MarketIntelViewProps> = ({ onSelectTicker
         {/* ---- SECTORS TAB ---- */}
         {activeTab === "sectors" && (
           <div className="space-y-3">
-            <div className="glass-card p-4 rounded-xl border-l-4 border-brand-info">
-              <p className="text-xs text-brand-muted">
-                <strong className="text-brand-info">Sector Rotation Signal:</strong> Technology and Communication Services leading — risk-on positioning.
-                Energy and Real Estate lagging — defensive rotation underway.
-              </p>
-            </div>
             {(!data?.sector_performance || data.sector_performance.length === 0 || data.sector_performance.some((s: any) => s.data_available === false)) ? (
               <div className="glass-card p-6 text-center rounded-xl">
                 <AlertTriangle className="w-6 h-6 text-brand-muted mx-auto mb-2" />
@@ -243,7 +237,14 @@ export const MarketIntelView: React.FC<MarketIntelViewProps> = ({ onSelectTicker
                 </p>
               </div>
             ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <>
+                <div className="glass-card p-4 rounded-xl border-l-4 border-brand-info">
+                  <p className="text-xs text-brand-muted">
+                    <strong className="text-brand-info">Sector Rotation Signal:</strong> Technology and Communication Services leading — risk-on positioning.
+                    Energy and Real Estate lagging — defensive rotation underway.
+                  </p>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 {data?.sector_performance?.map((s: any, i: number) => {
                   const isUp = s.trend === "up";
                   const pct = s.change ? parseFloat(s.change.replace("%", "").replace("+", "")) : 0;
@@ -272,6 +273,7 @@ export const MarketIntelView: React.FC<MarketIntelViewProps> = ({ onSelectTicker
                   );
                 })}
               </div>
+              </>
             )}
           </div>
         )}
@@ -349,11 +351,6 @@ export const MarketIntelView: React.FC<MarketIntelViewProps> = ({ onSelectTicker
         {/* ---- ECONOMIC CALENDAR TAB ---- */}
         {activeTab === "calendar" && (
           <div className="space-y-3">
-            <div className="glass-card p-4 rounded-xl border-l-4 border-brand-danger">
-              <p className="text-xs text-brand-muted">
-                <strong className="text-brand-danger">⚠ Economic Policy Calendar:</strong> System tracks real-world announcements.
-              </p>
-            </div>
             {!data?.economic_calendar || data.economic_calendar.length === 0 ? (
               <div className="glass-card p-6 text-center rounded-xl">
                 <AlertTriangle className="w-6 h-6 text-brand-muted mx-auto mb-2" />
@@ -363,7 +360,13 @@ export const MarketIntelView: React.FC<MarketIntelViewProps> = ({ onSelectTicker
                 </p>
               </div>
             ) : (
-              <div className="space-y-2">
+              <>
+                <div className="glass-card p-4 rounded-xl border-l-4 border-brand-danger">
+                  <p className="text-xs text-brand-muted">
+                    <strong className="text-brand-danger">⚠ Economic Policy Calendar:</strong> System tracks real-world announcements.
+                  </p>
+                </div>
+                <div className="space-y-2">
                 {data?.economic_calendar?.map((ev: any, i: number) => {
                   const impactColor = ev.impact === "Critical" ? "text-brand-danger bg-brand-danger/10" :
                     ev.impact === "High" ? "text-brand-warning bg-brand-warning/10" : "text-brand-muted bg-black/5 dark:bg-white/5";
@@ -388,6 +391,7 @@ export const MarketIntelView: React.FC<MarketIntelViewProps> = ({ onSelectTicker
                   );
                 })}
               </div>
+              </>
             )}
           </div>
         )}

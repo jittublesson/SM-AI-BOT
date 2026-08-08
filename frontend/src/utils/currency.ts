@@ -75,9 +75,9 @@ export function formatCompact(absoluteValue: number, targetCurrency: string): st
   const c = (targetCurrency || "USD").toUpperCase();
   
   if (c === "INR") {
-    // 1 Lakh Crore = 10^11
-    if (absVal >= 1e11) {
-      return sign + formatWithSymbol((absVal / 1e11).toFixed(2) + " Lakh Crore", "INR");
+    // 1 Lakh Crore = 10^12
+    if (absVal >= 1e12) {
+      return sign + formatWithSymbol((absVal / 1e12).toFixed(2) + " Lakh Crore", "INR");
     }
     // 1 Crore = 10^7
     if (absVal >= 1e7) {
