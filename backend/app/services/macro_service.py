@@ -81,7 +81,8 @@ TICKER_NAMES = {
     "HEROMOTOCO.NS": "Hero MotoCorp",
     "TATACONSUM.NS": "Tata Consumer Products",
     "BAJAJ-AUTO.NS": "Bajaj Auto",
-    "UPL.NS": "UPL Ltd.",
+    "UPL.NS": "UPL Ltd."
+}
 TICKER_SECTORS = {
     "RELIANCE.NS": "Energy", "TCS.NS": "IT", "HDFCBANK.NS": "Banks", "BHARTIARTL.NS": "Telecom", "ICICIBANK.NS": "Banks",
     "INFY.NS": "IT", "HINDUNILVR.NS": "Staples", "ITC.NS": "Staples", "SBIN.NS": "Banks", "KOTAKBANK.NS": "Banks",
