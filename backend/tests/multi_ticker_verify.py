@@ -8,6 +8,16 @@ from bs4 import BeautifulSoup
 # Add backend directory to path
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
+# Run Dependency Hygiene Pre-flight Validation
+import subprocess
+print("Running Dependency hygiene pre-flight check...")
+dep_check = subprocess.run([sys.executable, "backend/verify_dependencies.py"], capture_output=True, text=True)
+if dep_check.returncode != 0:
+    print(dep_check.stdout)
+    print("Pre-flight Dependency check failed! Exiting.")
+    sys.exit(1)
+print("Dependency check passed successfully.\n")
+
 from app.services.yfinance_service import YFinanceService, get_finology_promoter_holding
 
 tickers = [
