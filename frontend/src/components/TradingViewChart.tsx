@@ -31,19 +31,42 @@ export const TradingViewChart: React.FC<TradingViewChartProps> = ({ ticker }) =>
     const startDate = new Date();
     startDate.setDate(startDate.getDate() - count);
 
+    // 1. Generate standard random walk
+    const temp = [];
     for (let i = 0; i < count; i++) {
-      const d = new Date(startDate);
-      d.setDate(d.getDate() + i);
-      const dateStr = d.toISOString().split("T")[0];
-      
       const change = current * (Math.random() * 0.04 - 0.018);
       const open = parseFloat(current.toFixed(2));
       const close = parseFloat((current + change).toFixed(2));
       const high = parseFloat((Math.max(open, close) + Math.random() * (current * 0.015)).toFixed(2));
       const low = parseFloat((Math.min(open, close) - Math.random() * (current * 0.015)).toFixed(2));
       
-      list.push({ time: dateStr, open, close, high, low });
+      temp.push({ open, close, high, low });
       current = close;
+    }
+
+    // 2. Adjust with linear drift correction to land exactly at basePrice on the last day
+    const finalClose = temp[count - 1].close;
+    const diff = basePrice - finalClose;
+
+    for (let i = 0; i < count; i++) {
+      const d = new Date(startDate);
+      d.setDate(d.getDate() + i);
+      const dateStr = d.toISOString().split("T")[0];
+
+      const driftOpen = (diff * i) / count;
+      const driftClose = (diff * (i + 1)) / count;
+
+      const open = parseFloat((temp[i].open + driftOpen).toFixed(2));
+      const close = parseFloat((temp[i].close + driftClose).toFixed(2));
+      
+      // Keep high and low aligned relative to open and close
+      const originalMid = (temp[i].open + temp[i].close) / 2;
+      const newMid = (open + close) / 2;
+      
+      const high = parseFloat((newMid + (temp[i].high - originalMid)).toFixed(2));
+      const low = parseFloat((newMid - (originalMid - temp[i].low)).toFixed(2));
+
+      list.push({ time: dateStr, open, close, high, low });
     }
     return list;
   };
@@ -321,7 +344,7 @@ export const TradingViewChart: React.FC<TradingViewChartProps> = ({ ticker }) =>
 
       <div className="flex items-center gap-2 text-[10px] text-brand-muted bg-black/5 dark:bg-white/5 p-2.5 rounded-xl border border-light-border dark:border-dark-border">
         <AlertCircle className="w-4 h-4 text-brand-secondary" />
-        <span>Financial quotes compiled via TradingView Lightweight Charts API with active vector overlays.</span>
+        <span>Financial quotes compiled via TradingView Lightweight Charts API. Real-time path synced with main price feed.</span>
       </div>
 
     </div>

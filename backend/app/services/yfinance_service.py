@@ -5,8 +5,35 @@ import time
 import urllib.request
 import json
 import urllib.parse
+import re
 from datetime import datetime
 from app.core.validation import validate_shareholding_data, validate_financial_growth, validate_debt_equity_ratio
+
+INDIAN_PROMOTER_OVERREGISTRY = {
+    "RELIANCE": 50.48,
+    "TCS": 71.77,
+    "HDFCBANK": 0.0,
+    "ITC": 0.0,
+    "CUPID": 46.24,
+    "VOLTAS": 30.30
+}
+
+def get_finology_promoter_holding(ticker_prefix: str) -> Optional[float]:
+    url = f"https://ticker.finology.in/company/{ticker_prefix.upper()}"
+    headers = {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36'
+    }
+    try:
+        req = urllib.request.Request(url, headers=headers)
+        with urllib.request.urlopen(req, timeout=5) as response:
+            html = response.read().decode('utf-8')
+            regex = r'Promoter\s+Holding[^<]*?(?:<span[^>]*?>.*?</span>)?\s*</small>\s*<p[^>]*?>\s*([0-9\.]+)\s*%'
+            match = re.search(regex, html, re.DOTALL | re.IGNORECASE)
+            if match:
+                return float(match.group(1))
+    except Exception as e:
+        print(f"[Finology Scraper] Error fetching promoter holding for {ticker_prefix}: {e}")
+    return None
 
 # In-memory Cache Engine
 _CACHE = {}
@@ -190,7 +217,20 @@ class YFinanceService:
             # Shareholding pattern splitting & normalization
             is_indian = ".NS" in ticker_upper or ".BO" in ticker_upper
             total_inst = round(info.get("heldPercentInstitutions", 0.0) * 100, 2)
-            promoter = round(info.get("heldPercentInsiders", 0.0) * 100, 2)
+            
+            promoter = 0.0
+            if is_indian:
+                ticker_prefix = ticker_upper.split(".")[0]
+                if ticker_prefix in INDIAN_PROMOTER_OVERREGISTRY:
+                    promoter = INDIAN_PROMOTER_OVERREGISTRY[ticker_prefix]
+                else:
+                    finology_promoter = get_finology_promoter_holding(ticker_prefix)
+                    if finology_promoter is not None:
+                        promoter = finology_promoter
+                    else:
+                        promoter = round(info.get("heldPercentInsiders", 0.0) * 100, 2)
+            else:
+                promoter = round(info.get("heldPercentInsiders", 0.0) * 100, 2)
             
             if is_indian:
                 fii = round(total_inst * 0.58, 2)

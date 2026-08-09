@@ -67,7 +67,7 @@ export const CompareCompaniesView: React.FC<CompareCompaniesViewProps> = ({ targ
     const data = profilesData[ticker];
     if (!data) return null;
     if (key === "market_cap") {
-      return data.profile?.info?.market_cap || null;
+      return data.profile?.info?.market_cap ? data.profile.info.market_cap / 1e6 : null;
     }
     const latest = data.profile?.financials?.[0];
     return latest ? latest[key] : null;
