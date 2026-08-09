@@ -5,10 +5,10 @@ logging.basicConfig(level=logging.INFO)
 
 def validate_shareholding_data(ticker: str, promoter: float, fii: float, dii: float, retail: float) -> bool:
     total = promoter + fii + dii + retail
-    if not (95.0 <= total <= 105.0):
-        logger.warning(
-            f"[VALIDATION WARNING] Shareholding percentages for ticker '{ticker}' sum to {total:.2f}%, "
-            f"which is outside the valid range of 95% - 105% (Promoter: {promoter}%, FII: {fii}%, DII: {dii}%, Retail: {retail}%)."
+    if not (99.5 <= total <= 100.5):
+        logger.error(
+            f"[VALIDATION ERROR] Shareholding percentages for ticker '{ticker}' sum to {total:.2f}%, "
+            f"which is outside the required range of 99.5% - 100.5% (Promoter: {promoter}%, FII: {fii}%, DII: {dii}%, Retail: {retail}%)."
         )
         return False
     logger.info(f"[VALIDATION SUCCESS] Shareholding sum for '{ticker}': {total:.2f}%")
@@ -16,13 +16,14 @@ def validate_shareholding_data(ticker: str, promoter: float, fii: float, dii: fl
 
 def validate_financial_growth(ticker: str, year: int, line_item: str, yoy_change: float) -> bool:
     abs_change = abs(yoy_change)
-    if abs_change > 200.0:
+    limit = 200.0 if "Revenue" in line_item else 1500.0
+    if abs_change > limit:
         logger.error(
             f"[VALIDATION ERROR] Extreme YoY change detected for '{ticker}' {line_item} in {year}: {yoy_change:.2f}%. "
             f"This is highly indicative of a parsing or scaling bug."
         )
         return False
-    elif abs_change > 50.0:
+    elif abs_change > (limit * 0.25):
         logger.warning(
             f"[VALIDATION WARNING] Unusual YoY change detected for '{ticker}' {line_item} in {year}: {yoy_change:.2f}%."
         )

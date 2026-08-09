@@ -15,7 +15,9 @@ INDIAN_PROMOTER_OVERREGISTRY = {
     "HDFCBANK": 0.0,
     "ITC": 0.0,
     "CUPID": 46.24,
-    "VOLTAS": 30.30
+    "VOLTAS": 30.30,
+    "BPCL": 52.98,
+    "SALASAR": 44.50
 }
 
 def get_finology_promoter_holding(ticker_prefix: str) -> Optional[float]:
@@ -288,11 +290,21 @@ class YFinanceService:
             else:
                 stock_profile["etf_details"] = {"is_etf": False}
             
-            # Parse Financial Statements
+            # Parse Financial Statements with retry mechanism
             financials_history = []
-            income_stmt = yt.financials
-            bal_sheet = yt.balance_sheet
-            cashflow_stmt = yt.cashflow
+            income_stmt = None
+            bal_sheet = None
+            cashflow_stmt = None
+            for attempt in range(3):
+                try:
+                    income_stmt = yt.financials
+                    bal_sheet = yt.balance_sheet
+                    cashflow_stmt = yt.cashflow
+                    if income_stmt is not None and not income_stmt.empty:
+                        break
+                except Exception as fetch_err:
+                    print(f"[YFinanceService] Attempt {attempt+1} to fetch financials for {ticker_upper} failed: {fetch_err}")
+                time.sleep(1.0)
             
             # Determine basis dynamically
             basis = "Consolidated"

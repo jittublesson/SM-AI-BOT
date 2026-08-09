@@ -77,29 +77,29 @@ export function formatCompact(absoluteValue: number, targetCurrency: string): st
   if (c === "INR") {
     // 1 Lakh Crore = 10^12
     if (absVal >= 1e12) {
-      return sign + formatWithSymbol((absVal / 1e12).toFixed(2) + " Lakh Crore", "INR");
+      return sign + formatWithSymbol(formatIndianNumber(absVal / 1e12) + " Lakh Crore", "INR");
     }
     // 1 Crore = 10^7
     if (absVal >= 1e7) {
-      return sign + formatWithSymbol((absVal / 1e7).toFixed(2) + " Crore", "INR");
+      return sign + formatWithSymbol(formatIndianNumber(absVal / 1e7) + " Crore", "INR");
     }
     // 1 Lakh = 10^5
     if (absVal >= 1e5) {
-      return sign + formatWithSymbol((absVal / 1e5).toFixed(2) + " Lakh", "INR");
+      return sign + formatWithSymbol(formatIndianNumber(absVal / 1e5) + " Lakh", "INR");
     }
     return sign + formatWithSymbol(formatIndianNumber(absVal), "INR");
   } else {
     // 1 Trillion = 10^12
     if (absVal >= 1e12) {
-      return sign + formatWithSymbol((absVal / 1e12).toFixed(2) + " Trillion", c);
+      return sign + formatWithSymbol((absVal / 1e12).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + " Trillion", c);
     }
     // 1 Billion = 10^9
     if (absVal >= 1e9) {
-      return sign + formatWithSymbol((absVal / 1e9).toFixed(2) + " Billion", c);
+      return sign + formatWithSymbol((absVal / 1e9).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + " Billion", c);
     }
     // 1 Million = 10^6
     if (absVal >= 1e6) {
-      return sign + formatWithSymbol((absVal / 1e6).toFixed(2) + " Million", c);
+      return sign + formatWithSymbol((absVal / 1e6).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + " Million", c);
     }
     return sign + formatWithSymbol(absVal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }), c);
   }

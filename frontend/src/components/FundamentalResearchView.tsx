@@ -306,22 +306,26 @@ export const FundamentalResearchView: React.FC<FundamentalResearchViewProps> = (
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 pt-2">
             <div className="p-3.5 bg-black/5 dark:bg-white/5 rounded-xl border border-light-border dark:border-dark-border">
               <span className="text-[9px] text-brand-muted uppercase font-mono font-bold block">Market Capitalization</span>
-              <span className="text-xs font-bold text-slate-800 dark:text-slate-100">{formatFinancialValue((data?.profile?.info?.market_cap || 0) / 1e6, sourceCurrency, targetCurrency)}</span>
+              <span className="text-xs font-bold text-slate-800 dark:text-slate-100">
+                {data?.profile?.info?.market_cap
+                  ? formatFinancialValue(data.profile.info.market_cap / 1e6, sourceCurrency, targetCurrency)
+                  : "Data Unavailable"}
+              </span>
               <span className="text-[8px] text-brand-muted block mt-0.5 font-sans font-medium">Live ({basisLabel})</span>
             </div>
             <div className="p-3.5 bg-black/5 dark:bg-white/5 rounded-xl border border-light-border dark:border-dark-border">
               <span className="text-[9px] text-brand-muted uppercase font-mono font-bold block">Price Multiples (P/E)</span>
-              <span className="text-xs font-bold text-slate-800 dark:text-slate-100">{data?.profile?.info?.pe || "—"}</span>
+              <span className="text-xs font-bold text-slate-800 dark:text-slate-100">{data?.profile?.info?.pe || "Data Unavailable"}</span>
               <span className="text-[8px] text-brand-muted block mt-0.5 font-sans font-medium">TTM ({basisLabel})</span>
             </div>
             <div className="p-3.5 bg-black/5 dark:bg-white/5 rounded-xl border border-light-border dark:border-dark-border">
               <span className="text-[9px] text-brand-muted uppercase font-mono font-bold block">ROE %</span>
-              <span className="text-xs font-bold text-slate-800 dark:text-slate-100">{data?.profile?.info?.roe || "—"}%</span>
+              <span className="text-xs font-bold text-slate-800 dark:text-slate-100">{data?.profile?.info?.roe ? `${data.profile.info.roe}%` : "Data Unavailable"}</span>
               <span className="text-[8px] text-brand-muted block mt-0.5 font-sans font-medium">{periodLabelText}</span>
             </div>
             <div className="p-3.5 bg-black/5 dark:bg-white/5 rounded-xl border border-light-border dark:border-dark-border">
               <span className="text-[9px] text-brand-muted uppercase font-mono font-bold block">Debt to Equity</span>
-              <span className="text-xs font-bold text-slate-800 dark:text-slate-100">{data?.profile?.info?.debt_equity || "—"}</span>
+              <span className="text-xs font-bold text-slate-800 dark:text-slate-100">{data?.profile?.info?.debt_equity || "Data Unavailable"}</span>
               <span className="text-[8px] text-brand-muted block mt-0.5 font-sans font-medium">{periodLabelText}</span>
             </div>
           </div>
@@ -601,7 +605,9 @@ export const FundamentalResearchView: React.FC<FundamentalResearchViewProps> = (
                 {/* Data Quality & Reliability Dashboard */}
                 <div className="p-4 bg-light-bg dark:bg-[#070a10] border border-light-border dark:border-dark-border rounded-lg flex flex-col justify-between">
                   <div>
-                    <span className="text-[9px] text-brand-muted uppercase font-bold block">Current Price (NSE/BSE)</span>
+                    <span className="text-[9px] text-brand-muted uppercase font-bold block">
+                      Current Price (NSE/BSE) - {data.profile?.metadata?.market_status === "Open" ? "Delayed Live" : "Last Close"}
+                    </span>
                     <span className="text-sm font-mono font-black text-brand-primary mt-1 block">
                       {formatPrice(data.profile?.info?.price || 0, sourceCurrency, targetCurrency, true)}
                     </span>

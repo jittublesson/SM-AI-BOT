@@ -488,7 +488,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onSelectTicker, ta
             ) : (
               <div className="p-3 bg-black/5 dark:bg-white/5 rounded border border-light-border dark:border-dark-border text-center">
                 <span className="text-[9px] text-brand-muted block font-sans">Advances/Declines Breadth</span>
-                <span className="text-[8px] text-brand-muted block mt-1 font-mono italic">Requires NSE direct connection</span>
+                <span className="text-[8px] text-brand-muted block mt-1 font-mono italic">Unavailable — requires paid data provider</span>
               </div>
             )}
           </div>
@@ -760,7 +760,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onSelectTicker, ta
                 ) : (
                   <div className="p-4 bg-black/5 dark:bg-white/5 rounded border border-light-border dark:border-dark-border text-center mt-3">
                     <span className="text-[9px] text-brand-muted block font-sans">FII / DII flows data is currently unavailable</span>
-                    <span className="text-[8px] text-brand-muted block mt-1 font-mono italic">Requires direct NSE direct connection</span>
+                    <span className="text-[8px] text-brand-muted block mt-1 font-mono italic">Unavailable — requires paid data provider</span>
                   </div>
                 )}
               </div>

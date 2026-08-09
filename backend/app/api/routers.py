@@ -296,7 +296,8 @@ def remove_from_watchlist(id: int, db: Session = Depends(get_db)):
 @router.get("/analyst/price/{ticker}")
 def get_quick_price(ticker: str):
     """Lightweight endpoint returning just current price and daily change for the ticker strip."""
-    stock_data = YFinanceService.get_stock_data(ticker)
+    provider = get_market_provider()
+    stock_data = provider.get_stock_data(ticker)
     info = stock_data.get("info", {})
     financials = stock_data.get("financials", [])
     latest = financials[0] if financials else {}
