@@ -1,5 +1,6 @@
 import sys
 import os
+from datetime import datetime
 
 # Add backend directory to path
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
@@ -56,6 +57,19 @@ EXPECTED_MARKET_CAPS_CR = {
     "FILATEX.NS": 3700.0,       # Source: Screener.in (Checked Aug 8, 2026)
     "SANGHVIMOV.NS": 4228.0     # Source: Screener.in (Checked Aug 8, 2026)
 }
+
+# Check ground-truth age to prevent stale reference benchmarks
+try:
+    ref_dt = datetime.strptime("2026-08-08", "%Y-%m-%d")
+    days_old = (datetime.now() - ref_dt).days
+    if days_old > 30:
+        print("\n" + "!" * 100)
+        print(f"WARNING: Ground-truth reference benchmarks are {days_old} days old (Last Updated: 2026-08-08).")
+        print("Please manually update EXPECTED_MARKET_CAPS_CR and EXPECTED_PROMOTERS in backend/tests/multi_ticker_verify.py")
+        print("to ensure alignment with latest public market metrics.")
+        print("!" * 100 + "\n")
+except Exception as date_err:
+    print(f"Error checking benchmark age: {date_err}")
 
 print("=" * 100)
 print("WEALTHPILOT AI CROSS-SECTION PIPELINE INTEGRITY & CONSISTENCY SUITE")
