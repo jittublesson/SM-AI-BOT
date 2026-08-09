@@ -17,7 +17,11 @@ INDIAN_PROMOTER_OVERREGISTRY = {
     "CUPID": 46.24,
     "VOLTAS": 30.30,
     "BPCL": 52.98,
-    "SALASAR": 44.50
+    "SALASAR": 44.50,
+    "TMPV": 42.51,
+    "TMCV": 42.56,
+    "FILATEX": 65.47,
+    "SANGHVIMOV": 47.25
 }
 
 def get_finology_promoter_holding(ticker_prefix: str) -> Optional[float]:

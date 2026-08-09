@@ -26,7 +26,7 @@ NIFTY50_BASKET = [
     "NESTLEIND.NS", "ADANIPORTS.NS", "NTPC.NS", "TECHM.NS", "POWERGRID.NS",
     "ONGC.NS", "M&M.NS", "COALINDIA.NS", "BPCL.NS", "DIVISLAB.NS",
     "BAJAJFINSV.NS", "GRASIM.NS", "CIPLA.NS", "DRREDDY.NS", "HINDALCO.NS",
-    "JSWSTEEL.NS", "TATASTEEL.NS", "TATAMOTORS.NS", "SHREECEM.NS", "BRITANNIA.NS",
+    "JSWSTEEL.NS", "TATASTEEL.NS", "TMPV.NS", "SHREECEM.NS", "BRITANNIA.NS",
     "APOLLOHOSP.NS", "EICHERMOT.NS", "INDUSINDBK.NS", "SBILIFE.NS", "HDFCLIFE.NS",
     "PIDILITIND.NS", "HEROMOTOCO.NS", "TATACONSUM.NS", "BAJAJ-AUTO.NS", "UPL.NS"
 ]
@@ -70,7 +70,7 @@ TICKER_NAMES = {
     "HINDALCO.NS": "Hindalco Industries",
     "JSWSTEEL.NS": "JSW Steel",
     "TATASTEEL.NS": "Tata Steel",
-    "TATAMOTORS.NS": "Tata Motors",
+    "TMPV.NS": "Tata Motors PV",
     "SHREECEM.NS": "Shree Cement",
     "BRITANNIA.NS": "Britannia Industries",
     "APOLLOHOSP.NS": "Apollo Hospitals",
@@ -92,7 +92,7 @@ TICKER_SECTORS = {
     "NESTLEIND.NS": "Staples", "ADANIPORTS.NS": "Infra", "NTPC.NS": "Energy", "TECHM.NS": "IT", "POWERGRID.NS": "Energy",
     "ONGC.NS": "Energy", "M&M.NS": "Auto", "COALINDIA.NS": "Energy", "BPCL.NS": "Energy", "DIVISLAB.NS": "Pharma",
     "BAJAJFINSV.NS": "Financials", "GRASIM.NS": "Materials", "CIPLA.NS": "Pharma", "DRREDDY.NS": "Pharma", "HINDALCO.NS": "Metals",
-    "JSWSTEEL.NS": "Metals", "TATASTEEL.NS": "Metals", "TATAMOTORS.NS": "Auto", "SHREECEM.NS": "Materials", "BRITANNIA.NS": "Staples",
+    "JSWSTEEL.NS": "Metals", "TATASTEEL.NS": "Metals", "TMPV.NS": "Auto", "SHREECEM.NS": "Materials", "BRITANNIA.NS": "Staples",
     "APOLLOHOSP.NS": "Pharma", "EICHERMOT.NS": "Auto", "INDUSINDBK.NS": "Banks", "SBILIFE.NS": "Financials", "HDFCLIFE.NS": "Financials",
     "PIDILITIND.NS": "Consumer", "HEROMOTOCO.NS": "Auto", "TATACONSUM.NS": "Staples", "BAJAJ-AUTO.NS": "Auto", "UPL.NS": "Materials"
 }

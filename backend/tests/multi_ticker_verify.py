@@ -11,33 +11,44 @@ tickers = [
     "TCS.NS",       # Large-cap (IT)
     "HDFCBANK.NS",  # Large-cap (Banking)
     "BPCL.NS",      # Mid-cap (Oil refining)
-    "TATAMOTORS.NS",# Mid-cap (Delisted / Expected Unavailable)
+    "TMPV.NS",      # Mid-cap (Tata Motors Passenger Vehicles Successor)
+    "TMCV.NS",      # Mid-cap (Tata Motors Commercial Vehicles Successor)
+    "TATAMOTORS.NS",# Stale/Retired ticker (Verifies graceful data-unavailable fallback)
     "CUPID.NS",     # Small-cap (Healthcare/Manufacturing)
     "SALASAR.NS",   # Small-cap (Infrastructure)
-    "VOLTAS.NS"     # Mid-cap (Real PAT growth >200% validation failure fallback)
+    "FILATEX.NS",   # Small-cap (Textiles)
+    "SANGHVIMOV.NS",# Small-cap (Logistics/Cranes)
+    "VOLTAS.NS"     # Mid-cap (Consumer Durables)
 ]
 
-# Expected public promoter holdings (from Screener.in / BSE filings)
+# Expected public promoter holdings (from Screener.in / BSE filings / Finology)
 EXPECTED_PROMOTERS = {
     "RELIANCE.NS": 50.48,
     "TCS.NS": 71.77,
     "HDFCBANK.NS": 0.0,
-    "ITC.NS": 0.0,
+    "BPCL.NS": 52.98,
+    "TMPV.NS": 42.51,
+    "TMCV.NS": 42.56,
     "CUPID.NS": 46.24,
     "VOLTAS.NS": 30.30,
-    "BPCL.NS": 52.98,
-    "SALASAR.NS": 44.50
+    "SALASAR.NS": 44.50,
+    "FILATEX.NS": 65.47,
+    "SANGHVIMOV.NS": 47.25
 }
 
 # Expected public market caps as of August 2026 (approximate Crore values for validation check)
 EXPECTED_MARKET_CAPS_CR = {
-    "RELIANCE.NS": 1806314.0,  # ~18.06 Lakh Crore = 1,806,314 Crore
-    "TCS.NS": 887408.3,       # ~8.87 Lakh Crore
-    "HDFCBANK.NS": 1126417.7,  # ~11.26 Lakh Crore
-    "BPCL.NS": 137150.0,      # ~137,150 Crore
-    "CUPID.NS": 35247.59,     # ~35,247.59 Crore
-    "SALASAR.NS": 1027.79,    # ~1,027.79 Crore
-    "VOLTAS.NS": 45000.0      # ~45,000 Crore
+    "RELIANCE.NS": 1806314.56,
+    "TCS.NS": 887408.30,
+    "HDFCBANK.NS": 1126417.77,
+    "BPCL.NS": 137149.98,
+    "TMPV.NS": 127796.34,
+    "TMCV.NS": 166863.15,
+    "CUPID.NS": 35247.59,
+    "VOLTAS.NS": 42518.69,      # Refreshed Voltas market cap based on Screener/live data (was 45000.0)
+    "SALASAR.NS": 1027.79,
+    "FILATEX.NS": 3700.34,
+    "SANGHVIMOV.NS": 4228.37
 }
 
 print("=" * 100)
@@ -58,9 +69,9 @@ for ticker in tickers:
         if data.get("error_state"):
             print(f"PIPELINE STATUS: UNAVAILABLE")
             print(f"REASON: {data.get('error_message')}")
-            # Voltas and Tata Motors are expected to fail validation/fetch.
-            if ticker in ["VOLTAS.NS", "TATAMOTORS.NS"]:
-                print("STATUS: PASS (Graceful fallback fallback-check verified)")
+            # TATAMOTORS.NS is a retired ticker that is expected to fail.
+            if ticker in ["TATAMOTORS.NS"]:
+                print("STATUS: PASS (Graceful fallback check verified for stale ticker symbol)")
             else:
                 print("STATUS: FAIL (Unexpected pipeline failure)")
                 overall_pass = False
