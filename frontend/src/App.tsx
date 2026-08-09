@@ -3,7 +3,7 @@ import {
   Cpu, LayoutDashboard, GraduationCap, BarChart3, FileText, Briefcase, 
   Activity, Code, LineChart, Landmark, Share2, Sun, Moon, Search, 
   MessageSquare, Bookmark, X, Terminal, Eye, BookOpen, Globe, HelpCircle, Coins,
-  ChevronLeft, ChevronRight, Star, TrendingUp, Menu, Mic
+  ChevronLeft, ChevronRight, Star, TrendingUp, Menu, Mic, ShieldCheck
 } from "lucide-react";
 
 // Views imports
@@ -21,6 +21,7 @@ import { WatchlistView } from "./components/WatchlistView";
 import { ResearchJournalView } from "./components/ResearchJournalView";
 import { MarketIntelView } from "./components/MarketIntelView";
 import { MutualFundsView } from "./components/MutualFundsView";
+import { DataHealthView } from "./components/DataHealthView";
 import { EXCHANGE_RATES, CURRENCY_SYMBOLS } from "./utils/currency";
 
 export default function App() {
@@ -447,6 +448,12 @@ export default function App() {
       items: [
         { id: "academy", label: "Investing Academy", icon: GraduationCap }
       ]
+    },
+    {
+      name: "Administration",
+      items: [
+        { id: "health", label: "Data Health Monitor", icon: ShieldCheck }
+      ]
     }
   ];
 
@@ -704,6 +711,7 @@ export default function App() {
           {activeTab === "comparison"   && <CompareCompaniesView targetCurrency={targetCurrency} />}
           {activeTab === "graph"        && <KnowledgeGraphView ticker={ticker} targetCurrency={targetCurrency} />}
           {activeTab === "funds"        && <MutualFundsView targetCurrency={targetCurrency} />}
+          {activeTab === "health"       && <DataHealthView />}
         </main>
 
         {/* Mobile Responsive Bottom tab navigation */}

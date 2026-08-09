@@ -622,7 +622,10 @@ export const FundamentalResearchView: React.FC<FundamentalResearchViewProps> = (
                     </div>
                     <div className="flex justify-between text-[8.5px]">
                       <span>Currency: <span className="font-bold">{data.profile?.metadata?.currency || sourceCurrency}</span></span>
-                      <span>Updated: <span className="font-bold text-[8px]">{data.profile?.metadata?.last_updated || "Live"}</span></span>
+                      <span>
+                        {data.profile?.metadata?.market_status === "Open" ? "Updated: " : "Last Close: "}
+                        <span className="font-bold text-[8px]">{data.profile?.metadata?.last_updated || "Live"}</span>
+                      </span>
                     </div>
                   </div>
                 </div>

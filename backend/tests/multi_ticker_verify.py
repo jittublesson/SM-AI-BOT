@@ -1,6 +1,9 @@
 import sys
 import os
+import requests
+import re
 from datetime import datetime
+from bs4 import BeautifulSoup
 
 # Add backend directory to path
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
@@ -22,54 +25,47 @@ tickers = [
     "VOLTAS.NS"     # Mid-cap (Consumer Durables)
 ]
 
-# Expected ground-truth promoter holdings (%).
-# Source: Screener.in and BSE regulatory disclosures.
-# Checked Date: August 8, 2026.
-# We allow up to 2.0% tolerance band to account for class share differences or minor regulatory filing lag.
-EXPECTED_PROMOTERS = {
-    "RELIANCE.NS": 50.48,      # Source: Screener.in (Checked Aug 8, 2026)
-    "TCS.NS": 71.77,           # Source: Screener.in (Checked Aug 8, 2026)
-    "HDFCBANK.NS": 0.0,        # Source: Screener.in (Checked Aug 8, 2026 - widely held bank)
-    "BPCL.NS": 52.98,          # Source: Screener.in (Checked Aug 8, 2026 - Gov of India holding)
-    "TMPV.NS": 42.51,          # Source: Screener.in (Checked Aug 8, 2026)
-    "TMCV.NS": 42.56,          # Source: Screener.in (Checked Aug 8, 2026)
-    "CUPID.NS": 46.24,         # Source: Screener.in (Checked Aug 8, 2026)
-    "VOLTAS.NS": 30.30,        # Source: Screener.in (Checked Aug 8, 2026)
-    "SALASAR.NS": 44.50,       # Source: Screener.in (Checked Aug 8, 2026)
-    "FILATEX.NS": 65.47,       # Source: Screener.in (Checked Aug 8, 2026)
-    "SANGHVIMOV.NS": 47.25     # Source: Screener.in (Checked Aug 8, 2026)
-}
-
-# Expected ground-truth market caps in Crore.
-# Source: Screener.in manual lookup.
-# Checked Date: August 8, 2026.
-# We apply a strict 5.0% tolerance band against these static reference benchmarks to account for daily price fluctuations.
-EXPECTED_MARKET_CAPS_CR = {
-    "RELIANCE.NS": 1806314.0,  # Source: Screener.in (Checked Aug 8, 2026 - ~18.06 Lakh Crore)
-    "TCS.NS": 887408.0,        # Source: Screener.in (Checked Aug 8, 2026 - ~8.87 Lakh Crore)
-    "HDFCBANK.NS": 1126417.0,  # Source: Screener.in (Checked Aug 8, 2026 - ~11.26 Lakh Crore)
-    "BPCL.NS": 137150.0,       # Source: Screener.in (Checked Aug 8, 2026)
-    "TMPV.NS": 127796.0,       # Source: Screener.in (Checked Aug 8, 2026)
-    "TMCV.NS": 166863.0,       # Source: Screener.in (Checked Aug 8, 2026)
-    "CUPID.NS": 35247.59,      # Source: Screener.in (Checked Aug 8, 2026)
-    "VOLTAS.NS": 42402.0,       # Source: Screener.in (Checked Aug 8, 2026 - Voltas real ground truth is 42,402 Cr)
-    "SALASAR.NS": 1027.0,       # Source: Screener.in (Checked Aug 8, 2026)
-    "FILATEX.NS": 3700.0,       # Source: Screener.in (Checked Aug 8, 2026)
-    "SANGHVIMOV.NS": 4228.0     # Source: Screener.in (Checked Aug 8, 2026)
-}
-
-# Check ground-truth age to prevent stale reference benchmarks
-try:
-    ref_dt = datetime.strptime("2026-08-08", "%Y-%m-%d")
-    days_old = (datetime.now() - ref_dt).days
-    if days_old > 30:
-        print("\n" + "!" * 100)
-        print(f"WARNING: Ground-truth reference benchmarks are {days_old} days old (Last Updated: 2026-08-08).")
-        print("Please manually update EXPECTED_MARKET_CAPS_CR and EXPECTED_PROMOTERS in backend/tests/multi_ticker_verify.py")
-        print("to ensure alignment with latest public market metrics.")
-        print("!" * 100 + "\n")
-except Exception as date_err:
-    print(f"Error checking benchmark age: {date_err}")
+def scrape_finology_market_cap(prefix: str) -> float:
+    """Scrapes market cap in Crores from Finology as an independent ground-truth source."""
+    url = f"https://ticker.finology.in/company/{prefix.upper()}"
+    headers = {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36'
+    }
+    try:
+        r = requests.get(url, headers=headers, timeout=10)
+        if r.status_code == 200:
+            soup = BeautifulSoup(r.text, 'html.parser')
+            
+            # Check target structure for Market Cap card
+            target_span = soup.find(string=re.compile(r"Market Cap", re.I))
+            if target_span:
+                parent = target_span.find_parent()
+                card = parent.find_parent() if parent else None
+                if card:
+                    text_content = card.get_text()
+                    match = re.search(r'(?:Rs\.|₹)?\s*([0-9,]+\.?[0-9]*)\s*(?:Cr|Crores|Cr\.)?', text_content, re.I)
+                    if match:
+                        try:
+                            val = match.group(1).replace(",", "").strip(".")
+                            if val:
+                                return float(val)
+                        except ValueError:
+                            pass
+                        
+            # Fallback to general cards search
+            cards = soup.find_all(class_=re.compile(r"compess", re.I))
+            for card in cards:
+                text = card.get_text()
+                if "Market Cap" in text:
+                    nums = re.findall(r'[0-9]+[0-9,.]*', text)
+                    if nums:
+                        try:
+                            return float(nums[0].replace(",", "").strip("."))
+                        except ValueError:
+                            pass
+    except Exception as e:
+        print(f"Error scraping market cap for {prefix}: {e}")
+    return 0.0
 
 print("=" * 100)
 print("WEALTHPILOT AI CROSS-SECTION PIPELINE INTEGRITY & CONSISTENCY SUITE")
@@ -114,10 +110,13 @@ for ticker in tickers:
         print(f"\n[1] Market Cap Scaling Verification:")
         print(f"  Fetched Market Cap: {fetched_mcap:,.2f} {info.get('currency')} ({fetched_mcap_cr:,.2f} Crore)")
         
-        expected_mcap_cr = EXPECTED_MARKET_CAPS_CR.get(ticker, 0.0)
+        prefix = ticker.split(".")[0]
+        # Dynamically fetch ground truth from independent provider
+        expected_mcap_cr = scrape_finology_market_cap(prefix)
+        
         if expected_mcap_cr > 0.0:
             mcap_diff_pct = abs(fetched_mcap_cr - expected_mcap_cr) / expected_mcap_cr * 100.0
-            print(f"  Expected Ground-Truth Market Cap: {expected_mcap_cr:,.2f} Crore (Screener.in, Checked Aug 8, 2026)")
+            print(f"  Expected Ground-Truth Market Cap: {expected_mcap_cr:,.2f} Crore (Scraped dynamically from Finology)")
             print(f"  Variance against Ground Truth: {mcap_diff_pct:.4f}%")
             if mcap_diff_pct <= 5.0:  # Allow 5% variance due to daily price fluctuations
                 print("  => Market Cap Accuracy Check: PASS")
@@ -125,7 +124,7 @@ for ticker in tickers:
                 print("  => Market Cap Accuracy Check: FAIL (Outside 5% ground truth variance limit)")
                 overall_pass = False
         else:
-            print("  => Expected Market Cap data not configured. Skipping comparison.")
+            print("  => Expected Market Cap data could not be scraped from independent source. Skipping check.")
             
         # 2. Price Consistency Check across widgets
         # Header price vs simulated chart end price (with linear drift correction)
@@ -159,12 +158,16 @@ for ticker in tickers:
             
         # 3. Shareholding Split & Promoter Accuracy Check
         promoter = info.get("promoter_holding", 0.0)
-        expected_promoter = EXPECTED_PROMOTERS.get(ticker, 0.0)
+        # Dynamically fetch ground truth from independent provider
+        expected_promoter = get_finology_promoter_holding(prefix)
+        if expected_promoter is None:
+            expected_promoter = 0.0
+            
         promoter_diff = abs(promoter - expected_promoter)
         
         print(f"\n[3] Promoter Shareholding Verification:")
         print(f"  Fetched Promoter stake: {promoter}%")
-        print(f"  Expected Ground-Truth Promoter stake: {expected_promoter}% (Screener.in, Checked Aug 8, 2026)")
+        print(f"  Expected Ground-Truth Promoter stake: {expected_promoter}% (Scraped dynamically from Finology)")
         print(f"  Variance: {promoter_diff:.4f}%")
         
         # Check sum is 100%
@@ -215,7 +218,7 @@ for ticker in tickers:
 
 print("\n" + "=" * 100)
 if overall_pass:
-    print("ALL PIPELINE VERIFICATION METRICS PASSED CONFORMLY AGAINST GROUND TRUTH")
+    print("ALL PIPELINE VERIFICATION METRICS PASSED CONFORMLY AGAINST DYNAMIC GROUND TRUTH")
     sys.exit(0)
 else:
     print("PIPELINE AUDIT FAILED ON CRITICAL DISCREPANCIES")

@@ -124,3 +124,25 @@ class FundWatchlistItem(Base):
     alert_nav = Column(Float, nullable=True)
     sip_reminder_day = Column(Integer, nullable=True)
     added_at = Column(String)
+
+
+class DataHealthReport(Base):
+    __tablename__ = "data_health_reports"
+
+    id = Column(Integer, primary_key=True, index=True)
+    ticker = Column(String, index=True, nullable=False)
+    name = Column(String, nullable=True)
+    last_price_fetch = Column(String) # ISO timestamp
+    last_financials_fetch = Column(String) # ISO timestamp
+    last_financials_period = Column(String) # e.g. "FY2025-26"
+    basis = Column(String) # e.g. "Consolidated"
+    price = Column(Float)
+    fetched_mcap_cr = Column(Float)
+    ground_truth_mcap_cr = Column(Float)
+    mcap_variance_pct = Column(Float)
+    fetched_promoter = Column(Float)
+    ground_truth_promoter = Column(Float)
+    promoter_variance = Column(Float)
+    status = Column(String) # "PASS" or "FAIL"
+    error_message = Column(Text, nullable=True)
+    checked_at = Column(String) # ISO timestamp of check execution

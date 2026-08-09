@@ -23,6 +23,7 @@ from app.services.chat_service import ChatService
 from app.services.mutual_fund_service import MutualFundService
 from app.services.logger_service import AuditLogger
 from app.services.rag_service import RAGPipeline
+from app.services.data_health_service import DataHealthService
 from app.services.provider_layer import get_market_provider
 
 router = APIRouter()
@@ -929,4 +930,19 @@ def compare_rag_filings(ticker: str, term: str = Query(...)):
 @router.get("/logs/audit")
 def get_enterprise_audit_logs():
     return AuditLogger.get_audit_trail()
+
+
+@router.get("/admin/data-health")
+def get_data_health_reports(db: Session = Depends(get_db)):
+    reports = db.query(models.DataHealthReport).all()
+    # Synchronously run health check once if table is empty to populate the initial results
+    if not reports:
+        DataHealthService.run_daily_health_check(db)
+        reports = db.query(models.DataHealthReport).all()
+    return reports
+
+@router.post("/admin/data-health/trigger")
+def trigger_data_health_check(db: Session = Depends(get_db)):
+    DataHealthService.run_daily_health_check(db)
+    return {"status": "success", "message": "Manual data health audit triggered successfully."}
 
