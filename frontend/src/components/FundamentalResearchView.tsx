@@ -198,6 +198,13 @@ export const FundamentalResearchView: React.FC<FundamentalResearchViewProps> = (
     setChatMessages([
       { sender: "ai", text: `Loaded filing databases for ${ticker.toUpperCase()}. Ask me about margins, auditor opinion, or balance sheet risks.` }
     ]);
+
+    // Poll every 5 minutes during market open intervals (Requirement 1)
+    const timer = setInterval(() => {
+      fetchProfile();
+    }, 5 * 60 * 1000);
+
+    return () => clearInterval(timer);
   }, [ticker]);
 
   const metricsExplanations: Record<string, { title: string; formula: string; explain: string }> = {

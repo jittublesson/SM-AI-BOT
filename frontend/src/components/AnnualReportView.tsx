@@ -9,6 +9,7 @@ interface AnnualReportViewProps {
 export const AnnualReportView: React.FC<AnnualReportViewProps> = ({ ticker, targetCurrency = "INR" }) => {
   const [loading, setLoading] = useState(true);
   const [highlights, setHighlights] = useState<any>(null);
+  const [filings, setFilings] = useState<any>(null);
   
   // Interactive Document View states
   const [activeSection, setActiveSection] = useState<string>("biz");
@@ -25,6 +26,15 @@ export const AnnualReportView: React.FC<AnnualReportViewProps> = ({ ticker, targ
       const res = await fetch(`/api/v1/reports/highlights?ticker=${ticker}`);
       const json = await res.json();
       setHighlights(json);
+      
+      const profileRes = await fetch(`/api/v1/analyst/profile/${ticker}`);
+      if (profileRes.ok) {
+        const profileJson = await profileRes.json();
+        setFilings(profileJson.profile?.info?.filing_documents || null);
+      } else {
+        setFilings(null);
+      }
+      
       setQueryResults([]);
       setQueryText("");
     } catch (err) {
@@ -126,6 +136,48 @@ export const AnnualReportView: React.FC<AnnualReportViewProps> = ({ ticker, targ
               </div>
             </button>
           ))}
+        </div>
+
+        {/* Official Filing PDFs Card (Requirement 2) */}
+        <div className="pt-4 border-t border-light-border dark:border-dark-border space-y-3">
+          <h3 className="text-xs font-black uppercase text-brand-primary tracking-wider flex items-center gap-1.5">
+            <FileText className="w-4 h-4 text-brand-secondary animate-pulse" />
+            Official Filing Archives
+          </h3>
+          
+          <div className="space-y-2">
+            {filings?.annual_report ? (
+              <a
+                href={filings.annual_report.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center justify-between p-2 bg-green-500/10 hover:bg-green-500/20 text-green-500 border border-green-500/20 rounded-xl text-[10px] font-bold font-mono transition-colors cursor-pointer"
+              >
+                <span>Annual Report PDF</span>
+                <ChevronRight className="w-3.5 h-3.5" />
+              </a>
+            ) : (
+              <div className="p-2 bg-black/5 dark:bg-white/5 border border-dashed border-light-border dark:border-dark-border rounded-xl text-[9px] text-brand-muted leading-relaxed">
+                Report Unavailable — check <a href={filings?.ir_search_url || `https://www.google.com/search?q=${ticker.split('.')[0]}+Investor+Relations`} target="_blank" rel="noopener noreferrer" className="underline font-bold text-brand-primary cursor-pointer">Investor Relations</a> page
+              </div>
+            )}
+
+            {filings?.quarterly_result ? (
+              <a
+                href={filings.quarterly_result.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center justify-between p-2 bg-brand-secondary/10 hover:bg-brand-secondary/20 text-brand-secondary border border-brand-secondary/20 rounded-xl text-[10px] font-bold font-mono transition-colors cursor-pointer"
+              >
+                <span>Quarterly Result PDF</span>
+                <ChevronRight className="w-3.5 h-3.5" />
+              </a>
+            ) : (
+              <div className="p-2 bg-black/5 dark:bg-white/5 border border-dashed border-light-border dark:border-dark-border rounded-xl text-[9px] text-brand-muted leading-relaxed">
+                Quarterly Result Unavailable — check <a href={filings?.ir_search_url || `https://www.google.com/search?q=${ticker.split('.')[0]}+Investor+Relations`} target="_blank" rel="noopener noreferrer" className="underline font-bold text-brand-primary cursor-pointer">Investor Relations</a> page
+              </div>
+            )}
+          </div>
         </div>
       </div>
 

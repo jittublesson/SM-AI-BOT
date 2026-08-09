@@ -5,8 +5,7 @@ from app.core.config import settings
 from app.api.routers import router as api_router
 from app.core.database import engine, Base
 
-import threading
-import time
+from apscheduler.schedulers.background import BackgroundScheduler
 from app.core.database import SessionLocal
 from app.services.data_health_service import DataHealthService
 
@@ -15,23 +14,47 @@ app = FastAPI(
     openapi_url=f"{settings.API_V1_STR}/openapi.json"
 )
 
-def start_daily_health_check_loop():
-    # Wait 10 seconds initially for uvicorn workers to boot up completely
-    time.sleep(10)
-    while True:
-        try:
-            db = SessionLocal()
-            DataHealthService.run_daily_health_check(db)
-            db.close()
-        except Exception as loop_err:
-            print(f"[Health Service Loop Error] {loop_err}")
-        time.sleep(24 * 3600)
+# Initialize BackgroundScheduler
+scheduler = BackgroundScheduler()
+
+def scheduled_price_refresh():
+    try:
+        db = SessionLocal()
+        DataHealthService.batch_refetch_live_prices(db)
+    except Exception as e:
+        print(f"[Scheduler - Price Refresh Error] {e}")
+    finally:
+        db.close()
+
+def scheduled_health_audit():
+    try:
+        db = SessionLocal()
+        DataHealthService.run_daily_health_check(db)
+    except Exception as e:
+        print(f"[Scheduler - Health Audit Error] {e}")
+    finally:
+        db.close()
 
 @app.on_event("startup")
 def on_startup():
     Base.metadata.create_all(bind=engine)
-    t = threading.Thread(target=start_daily_health_check_loop, daemon=True)
-    t.start()
+    
+    # Run initial startup bootstraps
+    scheduled_price_refresh()
+    scheduled_health_audit()
+    
+    # Schedule live price refresh every 5 minutes
+    scheduler.add_job(scheduled_price_refresh, 'interval', minutes=5, id='price_refresh')
+    
+    # Schedule daily data health check every 24 hours
+    scheduler.add_job(scheduled_health_audit, 'interval', hours=24, id='health_audit')
+    
+    # Start the scheduler
+    scheduler.start()
+
+@app.on_event("shutdown")
+def on_shutdown():
+    scheduler.shutdown()
 
 # Set CORS middleware
 app.add_middleware(

@@ -6,7 +6,10 @@ import urllib.request
 import json
 import urllib.parse
 import re
+import requests
+import pytz
 from datetime import datetime
+from bs4 import BeautifulSoup
 from app.core.validation import validate_shareholding_data, validate_financial_growth, validate_debt_equity_ratio
 
 INDIAN_PROMOTER_OVERREGISTRY = {
@@ -57,11 +60,126 @@ def get_cached(key: str, ttl: int) -> Any:
 def set_cached(key: str, val: Any):
     _CACHE[key] = (val, time.time())
 
+NSE_HOLIDAYS_FALLBACK = {
+    # 2026 Holidays
+    "2026-01-26", "2026-03-06", "2026-03-20", "2026-04-03", "2026-04-14",
+    "2026-05-01", "2026-05-25", "2026-07-17", "2026-08-15", "2026-09-07",
+    "2026-10-02", "2026-10-23", "2026-11-12", "2026-11-27", "2026-12-25",
+    # 2027 Holidays
+    "2027-01-26", "2027-08-15", "2027-10-02", "2027-12-25"
+}
+
+def is_market_open() -> bool:
+    """Checks if the NSE/BSE markets are currently open (9:15 AM - 3:30 PM IST, Mon-Fri, excluding NSE holidays)."""
+    tz = pytz.timezone("Asia/Kolkata")
+    now = datetime.now(tz)
+    
+    # 1. Weekends check
+    if now.weekday() >= 5: # Saturday or Sunday
+        return False
+        
+    # 2. Daily time window check
+    market_start = now.replace(hour=9, minute=15, second=0, microsecond=0)
+    market_end = now.replace(hour=15, minute=30, second=0, microsecond=0)
+    if not (market_start <= now <= market_end):
+        return False
+        
+    # 3. Check local static holiday fallback first
+    today_str = now.strftime("%Y-%m-%d")
+    if today_str in NSE_HOLIDAYS_FALLBACK:
+        return False
+        
+    # 4. Check official NSE holiday list with anti-bot session bootstrap
+    try:
+        url = "https://www.nseindia.com/api/holiday-master?type=trading"
+        headers = {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36",
+            "Accept-Language": "en-US,en;q=0.9",
+            "Referer": "https://www.nseindia.com/resources/exchange-trading-clearing-holidays",
+            "Accept": "*/*"
+        }
+        session = requests.Session()
+        session.get("https://www.nseindia.com", headers=headers, timeout=5)
+        r = session.get(url, headers=headers, timeout=5)
+        if r.status_code == 200:
+            data = r.json()
+            holidays = data.get("CM", [])
+            for h in holidays:
+                h_date_str = h.get("tradingDate", "")
+                try:
+                    h_date = datetime.strptime(h_date_str, "%d-%b-%Y").date()
+                    if h_date == now.date():
+                        return False
+                except Exception:
+                    pass
+    except Exception as e:
+        print(f"[Market Open Check] Error checking official NSE API: {e}. Relying on local fallbacks.")
+        
+    return True
+
 CACHE_TTL_PRICE = 120        # 2 minutes for live prices
 CACHE_TTL_FINANCIALS = 86400 # 24 hours for heavy financial statements (1 day)
 CACHE_TTL_SEARCH = 300       # 5 minutes for autocomplete search results
 
 class YFinanceService:
+    @staticmethod
+    def get_bse_filing_links(ticker: str) -> Dict[str, Any]:
+        """Scrapes BSE/NSE direct report filing URLs for Indian companies."""
+        ticker_upper = ticker.upper().strip()
+        prefix = ticker_upper.split(".")[0]
+        is_indian = ticker_upper.endswith(".NS") or ticker_upper.endswith(".BO") or "." not in ticker_upper
+        
+        res = {
+            "annual_report": None,
+            "quarterly_result": None,
+            "ir_search_url": f"https://www.google.com/search?q={prefix}+Investor+Relations"
+        }
+        
+        if not is_indian:
+            return res
+            
+        url = f"https://ticker.finology.in/company/{prefix}"
+        headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36'
+        }
+        try:
+            r = requests.get(url, headers=headers, timeout=10)
+            if r.status_code == 200:
+                soup = BeautifulSoup(r.text, 'html.parser')
+                links = soup.find_all('a', href=True)
+                
+                # Resolve Annual Report PDF links
+                for link in links:
+                    href = link['href']
+                    if "annualreport" in href.lower() or "bseplus/annualreport" in href.lower():
+                        res["annual_report"] = {
+                            "label": "BSE Official Annual Report Filing",
+                            "url": href
+                        }
+                        break
+                        
+                # Resolve Quarterly Result Announcement PDF links
+                for link in links:
+                    href = link['href']
+                    if ("xml-data/corpfiling" in href.lower() or "attachhis" in href.lower()) and href.endswith(".pdf"):
+                        if not res["annual_report"] or href != res["annual_report"]["url"]:
+                            res["quarterly_result"] = {
+                                "label": "BSE Corporate Announcement PDF",
+                                "url": href
+                            }
+                            break
+        except Exception as e:
+            print(f"[Filings Scraper] Error scraping filings for {ticker_upper}: {e}")
+            
+        # Alert / Log warnings when scrape fails or is incomplete (Requirement 4)
+        if not res["annual_report"] or not res["quarterly_result"]:
+            missing = []
+            if not res["annual_report"]: missing.append("Annual Report")
+            if not res["quarterly_result"]: missing.append("Quarterly Result")
+            print(f"[FILINGS ALERT] Missing documents for {ticker_upper}: {', '.join(missing)}")
+            
+        return res
+
     @staticmethod
     def get_live_price(ticker: str) -> Dict[str, Any]:
         ticker_upper = ticker.upper().strip()
@@ -448,6 +566,10 @@ class YFinanceService:
                     raise ValueError(f"YoY PAT growth for '{ticker_upper}' in {f['year']} failed validation (>200%).")
                 validate_debt_equity_ratio(ticker_upper, f["year"], f["total_debt"], f["shareholders_equity"], f["debt_equity"])
                     
+            # Scrape BSE direct PDF filing links
+            filing_docs = YFinanceService.get_bse_filing_links(ticker_upper)
+            stock_profile["filing_documents"] = filing_docs
+
             res = {
                 "info": stock_profile,
                 "financials": sorted(financials_history, key=lambda x: x["year"], reverse=True),
@@ -485,7 +607,13 @@ class YFinanceService:
                     "This may be due to an invalid ticker symbol, rate limiting, or a network issue. "
                     "Please verify the symbol and try again."
                 ),
-                "info": None,
+                "info": {
+                    "filing_documents": {
+                        "annual_report": None,
+                        "quarterly_result": None,
+                        "ir_search_url": f"https://www.google.com/search?q={ticker_upper.split('.')[0]}+Investor+Relations"
+                    }
+                },
                 "financials": [],
                 "metadata": {
                     "last_updated": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),

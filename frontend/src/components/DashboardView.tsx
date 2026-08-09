@@ -129,6 +129,13 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onSelectTicker, ta
 
   useEffect(() => {
     fetchDashboardData();
+
+    // Poll dashboard/watchlist data every 5 minutes during market hours (Requirement 1)
+    const timer = setInterval(() => {
+      fetchDashboardData();
+    }, 5 * 60 * 1000);
+
+    return () => clearInterval(timer);
   }, []);
 
   const handleDeleteNote = (idx: number) => {

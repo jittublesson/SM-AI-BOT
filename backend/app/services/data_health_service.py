@@ -8,7 +8,7 @@ from typing import List, Set, Dict, Any
 from sqlalchemy.orm import Session
 
 from app.models.models import DataHealthReport, WatchlistItem, UserHolding, ResearchJournalEntry
-from app.services.yfinance_service import YFinanceService, get_finology_promoter_holding
+from app.services.yfinance_service import YFinanceService, get_finology_promoter_holding, set_cached, is_market_open
 from app.services.macro_service import NIFTY50_BASKET
 
 logger = logging.getLogger("wealthpilot.health")
@@ -58,6 +58,59 @@ class DataHealthService:
         except Exception as e:
             logger.error(f"[Health Service] Error scraping market cap for {ticker_prefix}: {e}")
         return 0.0
+
+    @classmethod
+    def batch_refetch_live_prices(cls, db: Session):
+        """Discovers all tracked tickers, downloads their latest prices in a single batch query, and updates their cache."""
+        if not is_market_open():
+            logger.info("[Batch Price Refetcher] Market is closed. Skipping price poll.")
+            return
+
+        tickers = cls.get_all_tracked_tickers(db)
+        if not tickers:
+            return
+
+        tickers_list = list(tickers)
+        logger.info(f"[Batch Price Refetcher] Batch updating prices for {len(tickers_list)} tickers...")
+
+        try:
+            import yfinance as yf
+            
+            # Perform a single batch download
+            df = yf.download(" ".join(tickers_list), period="1d", interval="1m", group_by="ticker", progress=False)
+            
+            for ticker in tickers_list:
+                try:
+                    if len(tickers_list) > 1:
+                        if ticker in df.columns.levels[0]:
+                            ticker_df = df[ticker]
+                        else:
+                            continue
+                    else:
+                        ticker_df = df
+                        
+                    if not ticker_df.empty:
+                        close_series = ticker_df["Close"].dropna()
+                        open_series = ticker_df["Open"].dropna()
+                        if not close_series.empty:
+                            last_price = float(close_series.iloc[-1])
+                            first_open = float(open_series.iloc[0]) if not open_series.empty else last_price
+                            change = round(((last_price - first_open) / first_open) * 100.0, 2) if first_open else 0.0
+                            
+                            cache_key = f"price_{ticker}"
+                            price_data = {
+                                "price": round(last_price, 2),
+                                "change": change,
+                                "volume": 0,
+                                "currency": "INR" if (".NS" in ticker or ".BO" in ticker) else "USD",
+                                "as_of": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                            }
+                            set_cached(cache_key, price_data)
+                except Exception as ticker_err:
+                    logger.error(f"[Batch Price Refetcher] Error extracting price for {ticker}: {ticker_err}")
+            logger.info("[Batch Price Refetcher] Completed batch price update.")
+        except Exception as e:
+            logger.error(f"[Batch Price Refetcher] Error in batch download: {e}")
 
     @staticmethod
     def get_all_tracked_tickers(db: Session) -> Set[str]:
@@ -166,6 +219,18 @@ class DataHealthService:
                 # Check tolerances (Market Cap: 5%, Promoter stake: 2%)
                 has_diverged = False
                 error_msgs = []
+                
+                # Check for direct BSE filings scraping failures (Requirement 4)
+                filing_docs = info.get("filing_documents", {})
+                annual_report = filing_docs.get("annual_report")
+                quarterly_result = filing_docs.get("quarterly_result")
+                if is_indian:
+                    if not annual_report or not quarterly_result:
+                        has_diverged = True
+                        missing = []
+                        if not annual_report: missing.append("Annual Report PDF")
+                        if not quarterly_result: missing.append("Quarterly Result PDF")
+                        error_msgs.append(f"Missing direct BSE filings: {', '.join(missing)}")
                 
                 if gt_mcap > 0 and mcap_variance > 5.0:
                     has_diverged = True
